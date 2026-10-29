@@ -538,7 +538,7 @@ impl App {
                 .begin("replace_config", Some((&config, &overrides)), json!({}))?;
         // 先提交新快照，让 systemd 的 ExecStartPre 在重启时读取到新配置。
         self.store.commit_candidate(&operation)?;
-        let result = async {
+        let result: Result<Value> = async {
             self.materialize()?;
             self.system.action("restart").await?;
             self.wait_ready(Duration::ZERO).await?;
