@@ -298,3 +298,57 @@ pub fn document() -> utoipa::openapi::OpenApi {
     document["paths"] = Value::Object(paths);
     serde_json::from_value(document).expect("valid generated OpenAPI document")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn business_components_support_json_roundtrip() {
+        let document = serde_json::to_value(ApiComponents::openapi()).unwrap();
+        // 分别检查组件，使无效嵌套 schema 的报错包含组件名称，便于定位 RefOr 解析失败。
+        for (name, schema) in document["components"]["schemas"].as_object().unwrap() {
+            serde_json::from_value::<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>(
+                schema.clone(),
+            )
+            .unwrap_or_else(|error| panic!("invalid component {name}: {error}"));
+        }
+        for name in ["Snapshot", "Operation"] {
+            let properties = &document["components"]["schemas"][name]["properties"];
+            let fields: &[&str] = if name == "Snapshot" {
+                &["config", "overrides"]
+            } else {
+                &["details"]
+            };
+            for field in fields {
+                assert_eq!(properties[*field]["type"], "object", "{name}.{field}");
+            }
+        }
+    }
+
+    #[test]
+    fn generated_document_supports_roundtrip_and_preserves_composite_schemas() {
+        let value = serde_json::to_value(document()).unwrap();
+        let parsed: utoipa::openapi::OpenApi = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(serde_json::to_value(parsed).unwrap(), value);
+        let schemas = &value["components"]["schemas"];
+        assert_eq!(
+            schemas["Operation"]["properties"]["details"]["type"],
+            "object"
+        );
+        assert_eq!(
+            schemas["Snapshot"]["properties"]["config"]["$ref"],
+            "#/components/schemas/XrayConfig"
+        );
+        for name in [
+            "InboundConfig",
+            "OutboundConfig",
+            "pb.xray.common.serial.TypedMessage",
+        ] {
+            assert!(
+                schemas[name]["oneOf"].as_array().unwrap().len() > 1,
+                "{name}"
+            );
+        }
+    }
+}

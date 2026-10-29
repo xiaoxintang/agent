@@ -26,8 +26,10 @@ pub fn now() -> i64 {
 pub struct Snapshot {
     // 修订号单调递增；候选快照也会分配修订号，因此已提交版本不保证连续。
     pub revision: i64,
+    #[schema(value_type = Object)]
     pub config: Value,
     /// Balancer tag -> runtime override target; not a native Xray JSON setting.
+    #[schema(value_type = Object)]
     pub overrides: Value,
 }
 
@@ -41,6 +43,8 @@ pub struct Operation {
     pub previous_revision: i64,
     // 纯版本切换不改变配置，所以没有候选修订号。
     pub candidate_revision: Option<i64>,
+    // 内容始终是对象；显式 schema 类型避免 Value 生成无法反序列化的无类型 schema。
+    #[schema(value_type = Object)]
     pub details: Value,
     pub error: Option<String>,
     pub created_at: i64,

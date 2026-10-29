@@ -29,8 +29,9 @@ use std::{
 )]
 struct Cli {
     // 自定义小写 -v，同时保留常见的 -V；版本参数会在执行业务命令前退出。
+    // Version 动作不生成默认布尔值，使用 Option 避免普通子命令缺少此字段。
     #[arg(short = 'v', long = "version", visible_short_alias = 'V', action = clap::ArgAction::Version, global = true)]
-    _version: bool,
+    _version: Option<bool>,
     #[command(subcommand)]
     command: Commands,
 }
@@ -156,6 +157,27 @@ async fn run(cli: Cli) -> Result<()> {
 #[cfg(test)]
 mod cli_tests {
     use super::*;
+
+    #[test]
+    fn ordinary_commands_do_not_require_a_version_flag() {
+        for command in [
+            "version",
+            "init",
+            "serve",
+            "prepare-xray",
+            "restore-xray",
+            "openapi",
+        ] {
+            let cli = Cli::try_parse_from(["agent", command]).unwrap_or_else(|error| {
+                panic!("{command} must parse without a version flag: {error}")
+            });
+            assert!(cli._version.is_none());
+        }
+        let cli = Cli::try_parse_from(["agent", "openapi", "--output", "openapi.json"]).unwrap();
+        assert!(
+            matches!(cli.command, Commands::Openapi { output: Some(path) } if path == PathBuf::from("openapi.json"))
+        );
+    }
 
     #[test]
     fn version_flags_exit_successfully_without_a_subcommand() {
