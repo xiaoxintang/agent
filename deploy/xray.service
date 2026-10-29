@@ -1,0 +1,43 @@
+# Managed by xray-agent
+# 首行用于安装和覆盖前的归属检查，保持固定标记。
+[Unit]
+Description=Xray managed by Rust agent
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=exec
+User=root
+Group=root
+UMask=0077
+# 启动前只生成数据库已提交配置，启动后恢复无法写入原生 JSON 的 override。
+ExecStartPre=/usr/local/bin/agent prepare-xray
+ExecStart=/opt/xray/current/xray run -config /etc/xray/config.json
+ExecStartPost=/usr/local/bin/agent restore-xray
+Environment=XRAY_LOCATION_ASSET=/opt/xray/current
+# 这里只处理进程崩溃重启，配置一致性问题不会由 Agent 自动触发重启。
+Restart=on-failure
+# Xray 用退出码 23 表示配置错误，避免反复重试无效配置。
+RestartPreventExitStatus=23
+RestartSec=3
+TimeoutStartSec=90
+TimeoutStopSec=30
+LimitNOFILE=1048576
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+# root 进程仍限制能力集合；TUN 或透明代理所需能力需通过 drop-in 显式增加。
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+# 启动辅助命令需要发布配置并访问 SQLite，不能将这两个目录设为只读。
+ReadWritePaths=/etc/xray /var/lib/xray-agent
+RuntimeDirectory=xray
+LogsDirectory=xray
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

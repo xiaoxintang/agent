@@ -1,0 +1,26 @@
+# Managed by xray-agent
+# 首行用于识别受管 unit，不能删除或改成其他标记。
+[Unit]
+Description=Rust Xray management agent
+# Agent 独立启动，Xray 未安装或启动失败时管理接口仍可工作。
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/local/bin/agent serve
+Restart=on-failure
+RestartSec=3
+# 退出时需要等待已开始的后台变更完成持久化，预留下载和切换操作的收尾时间。
+TimeoutStopSec=600
+NoNewPrivileges=true
+ProtectHome=true
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

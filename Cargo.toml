@@ -1,0 +1,51 @@
+[package]
+name = "agent"
+# 发布标签必须为 v<此版本>，CLI 版本输出和安装包名称也从这里派生。
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# HTTP、gRPC 和后台任务共用 Tokio；配置修改通过 App 协调持久化及外部调用。
+async-stream = "0.3"
+async-trait = "0.1"
+axum = "0.8"
+base64 = "0.22"
+clap = { version = "4", features = ["derive"] }
+fs2 = "0.4"
+futures-util = "0.3"
+hex = "0.4"
+http = "1"
+prost = "0.14"
+# 动态 protobuf 反射同时用于请求转换和 OpenAPI 字段生成。
+prost-reflect = { version = "0.16", features = ["serde"] }
+rand = "0.9"
+# 使用 rustls 支持 musl 静态发行包，部署机器无需提供 OpenSSL 动态库。
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+# 将 SQLite 编译进程序，避免依赖部署机器的 libsqlite3 版本。
+rusqlite = { version = "0.37", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+subtle = "2"
+tempfile = "3"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+toml = "0.9"
+tonic = { version = "0.14", features = ["transport"] }
+tower = { version = "0.5", features = ["util"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+utoipa = { version = "5", features = ["axum_extras"] }
+# UI 资源随依赖提供，构建时不再临时从外网下载 Swagger UI。
+utoipa-swagger-ui = { version = "9", features = ["axum", "vendored"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+zip = { version = "4", default-features = false, features = ["deflate"] }
+
+[build-dependencies]
+# build.rs 仅编译仓库内固定的 proto 描述集，无需系统安装 protoc。
+prost = "0.14"
+protox = "0.9"
+
+[dev-dependencies]
+http-body-util = "0.1"
