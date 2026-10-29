@@ -3,6 +3,7 @@ name: Build and release
 # 普通推送和 PR 生成可下载的构建产物，匹配版本的标签推送才发布 Release。
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
