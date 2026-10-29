@@ -74,6 +74,8 @@ agent openapi --output openapi.json
 - 推送 `v*` 标签：上述步骤全部成功后创建 GitHub Release，上传两种架构的安装包、`install.sh` 和 `SHA256SUMS`。
 - 标签必须与 `Cargo.toml` 的 `package.version` 一致；例如版本 `0.1.0` 对应标签 `v0.1.0`。预发布标签生成 prerelease，不替换 latest 稳定版本。
 
+Rust 构建缓存复用 Cargo 依赖及 `target` 编译产物，按 amd64/arm64 的 musl target 隔离。`main` 成功构建后保存缓存，标签发布和 PR 读取复用；工具链、Cargo 配置及 lockfile 参与缓存键计算。首次构建需要建立缓存，后续命中缓存时可减少下载和编译时间。
+
 首次发布示例：
 
 ```sh

@@ -58,6 +58,14 @@ jobs:
           sudo apt-get install --yes musl-tools
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt --target "$RUST_TARGET"
           rustup default "$RUST_TOOLCHAIN"
+      # 工具链选定后恢复 Cargo 和 target 缓存；不同 musl 架构分别存储。
+      # 仅 main 的成功构建保存缓存，标签发布和 PR 复用主分支缓存。
+      - name: Restore Rust build cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: musl-${{ matrix.target }}
+          cache-workspace-crates: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Check sources and installer
         run: |
           cargo fmt --all -- --check
