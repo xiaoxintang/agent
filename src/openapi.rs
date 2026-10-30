@@ -191,6 +191,12 @@ fn native_schemas(schemas: &mut Map<String, Value>) {
             }
         }
     }
+    // Complete native JSON fields extracted from the same pinned upstream source.
+    // These are not protobuf wire schemas; keep both representations independent.
+    let native: Map<String, Value> =
+        serde_json::from_str(include_str!("../schemas/xray-native.json"))
+            .expect("valid pinned native schemas");
+    schemas.extend(native);
 }
 
 pub fn document() -> utoipa::openapi::OpenApi {

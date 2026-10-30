@@ -1,0 +1,275 @@
+[
+  {
+    "method": "post",
+    "path": "/api/v1/agent/update",
+    "label": "更新 Agent",
+    "group": "版本与进程",
+    "mutating": true
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/install",
+    "label": "安装 Xray",
+    "group": "版本与进程",
+    "mutating": true
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/versions",
+    "label": "本地版本",
+    "group": "版本与进程",
+    "mutating": false
+  },
+  {
+    "method": "delete",
+    "path": "/api/v1/xray/versions/{version}",
+    "label": "删除版本",
+    "group": "版本与进程",
+    "mutating": true
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/status",
+    "label": "进程与同步状态",
+    "group": "版本与进程",
+    "mutating": false
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/capabilities",
+    "label": "接口能力",
+    "group": "版本与进程",
+    "mutating": false
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/start",
+    "label": "启动 Xray",
+    "group": "版本与进程",
+    "mutating": true
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/stop",
+    "label": "停止 Xray",
+    "group": "版本与进程",
+    "mutating": true
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/restart",
+    "label": "重启并恢复配置",
+    "group": "版本与进程",
+    "mutating": true
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/config",
+    "label": "查看完整配置",
+    "group": "完整配置",
+    "mutating": false
+  },
+  {
+    "method": "put",
+    "path": "/api/v1/xray/config",
+    "label": "替换完整配置",
+    "group": "完整配置",
+    "mutating": true
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/inbounds",
+    "label": "查询入站",
+    "group": "入站与用户",
+    "mutating": false
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/inbounds",
+    "label": "创建入站",
+    "group": "入站与用户",
+    "mutating": true
+  },
+  {
+    "method": "delete",
+    "path": "/api/v1/xray/inbounds/{tag}",
+    "label": "删除入站",
+    "group": "入站与用户",
+    "mutating": true
+  },
+  {
+    "method": "patch",
+    "path": "/api/v1/xray/inbounds/{tag}",
+    "label": "修改入站用户",
+    "group": "入站与用户",
+    "mutating": true
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/inbounds/{tag}/users",
+    "label": "查询原生用户",
+    "group": "入站与用户",
+    "mutating": false
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/inbounds/{tag}/users/count",
+    "label": "查询用户数量",
+    "group": "入站与用户",
+    "mutating": false
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/inbounds/{tag}/users",
+    "label": "添加原生用户",
+    "group": "入站与用户",
+    "mutating": true
+  },
+  {
+    "method": "delete",
+    "path": "/api/v1/xray/inbounds/{tag}/users/{email}",
+    "label": "删除原生用户",
+    "group": "入站与用户",
+    "mutating": true
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/outbounds",
+    "label": "查询出站",
+    "group": "出站管理",
+    "mutating": false
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/outbounds",
+    "label": "创建出站",
+    "group": "出站管理",
+    "mutating": true
+  },
+  {
+    "method": "delete",
+    "path": "/api/v1/xray/outbounds/{tag}",
+    "label": "删除出站",
+    "group": "出站管理",
+    "mutating": true
+  },
+  {
+    "method": "patch",
+    "path": "/api/v1/xray/outbounds/{tag}",
+    "label": "修改出站",
+    "group": "出站管理",
+    "mutating": true
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/stats/read",
+    "label": "读取计数器",
+    "group": "统计与在线",
+    "mutating": true
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/stats/query",
+    "label": "查询计数器",
+    "group": "统计与在线",
+    "mutating": true
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/stats/online",
+    "label": "查询在线数",
+    "group": "统计与在线",
+    "mutating": false
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/stats/online-ips",
+    "label": "查询在线 IP",
+    "group": "统计与在线",
+    "mutating": false
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/stats/online-users",
+    "label": "查询在线用户",
+    "group": "统计与在线",
+    "mutating": false
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/stats/users/query",
+    "label": "查询用户流量",
+    "group": "统计与在线",
+    "mutating": true
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/stats/system",
+    "label": "系统运行统计",
+    "group": "统计与在线",
+    "mutating": false
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/routing/rules",
+    "label": "查询路由规则",
+    "group": "路由与负载均衡",
+    "mutating": false
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/routing/rules",
+    "label": "追加或替换路由规则",
+    "group": "路由与负载均衡",
+    "mutating": true
+  },
+  {
+    "method": "delete",
+    "path": "/api/v1/xray/routing/rules/{ruleTag}",
+    "label": "删除路由规则",
+    "group": "路由与负载均衡",
+    "mutating": true
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/routing/test",
+    "label": "测试路由",
+    "group": "路由与负载均衡",
+    "mutating": true
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/routing/balancers/{tag}",
+    "label": "查询负载均衡",
+    "group": "路由与负载均衡",
+    "mutating": false
+  },
+  {
+    "method": "put",
+    "path": "/api/v1/xray/routing/balancers/{tag}/target",
+    "label": "覆盖负载均衡目标",
+    "group": "路由与负载均衡",
+    "mutating": true
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/routing/events",
+    "label": "订阅路由事件",
+    "group": "路由与负载均衡",
+    "mutating": false
+  },
+  {
+    "method": "post",
+    "path": "/api/v1/xray/logger/restart",
+    "label": "重开日志",
+    "group": "日志与探测",
+    "mutating": true
+  },
+  {
+    "method": "get",
+    "path": "/api/v1/xray/observatory/outbounds",
+    "label": "出站探测",
+    "group": "日志与探测",
+    "mutating": false
+  }
+]

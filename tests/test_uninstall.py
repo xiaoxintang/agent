@@ -22,7 +22,8 @@ class UninstallTests(unittest.TestCase):
         self.units = self.root / "etc/systemd/system"
         self.data_paths = [
             "etc/xray-agent", "etc/xray", "opt/xray", "var/lib/xray-agent",
-            "var/log/xray", "run/xray",
+            "var/log/xray", "run/xray", "opt/xray-web", "var/lib/xray-web",
+            "etc/systemd/system/xray-web.service.d", "run/systemd/system/xray-web.service.d",
             "etc/systemd/system/xray-agent.service.d", "etc/systemd/system/xray.service.d",
             "run/systemd/system/xray-agent.service.d", "run/systemd/system/xray.service.d",
         ]
@@ -30,7 +31,7 @@ class UninstallTests(unittest.TestCase):
             directory = self.root / path
             directory.mkdir(parents=True)
             (directory / "data").write_text("fixture")
-        for unit in ["xray-agent.service", "xray.service"]:
+        for unit in ["xray-web.service", "xray-agent.service", "xray.service"]:
             shutil.copyfile(ROOT / "deploy" / unit, self.units / unit)
             wants = self.units / "multi-user.target.wants"
             wants.mkdir(exist_ok=True)
@@ -95,7 +96,7 @@ elif args == ['stop', os.environ.get('MOCK_STOP_FAILURE')]:
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         for path in self.data_paths + ["usr/local/bin/agent", "usr/local/bin/agent.new"]:
             self.assertFalse((self.root / path).exists(), path)
-        for unit in ["xray-agent.service", "xray.service"]:
+        for unit in ["xray-web.service", "xray-agent.service", "xray.service"]:
             self.assertFalse((self.units / unit).exists())
             self.assertFalse((self.units / "multi-user.target.wants" / unit).is_symlink())
         actions = self.log.read_text().splitlines()
@@ -108,7 +109,7 @@ elif args == ['stop', os.environ.get('MOCK_STOP_FAILURE')]:
         self.assertEqual(repeated.returncode, 0, repeated.stdout + repeated.stderr)
 
     def test_stop_failure_preserves_all_files(self):
-        for unit in ["xray-agent.service", "xray.service"]:
+        for unit in ["xray-web.service", "xray-agent.service", "xray.service"]:
             with self.subTest(unit=unit):
                 result = self.uninstall(stop_failure=unit)
                 self.assertNotEqual(result.returncode, 0)
@@ -147,7 +148,7 @@ elif args == ['stop', os.environ.get('MOCK_STOP_FAILURE')]:
         self.assertTrue((self.root / "etc/xray/data").is_file())
 
     def test_missing_services_do_not_prevent_cleanup(self):
-        for unit in ["xray-agent.service", "xray.service"]:
+        for unit in ["xray-web.service", "xray-agent.service", "xray.service"]:
             (self.units / unit).unlink()
         result = self.uninstall()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -164,7 +165,7 @@ elif args == ['stop', os.environ.get('MOCK_STOP_FAILURE')]:
         self.assertEqual((outside / "data").read_text(), "keep")
 
     def test_cached_services_are_stopped_after_unit_files_were_deleted(self):
-        for unit in ["xray-agent.service", "xray.service"]:
+        for unit in ["xray-web.service", "xray-agent.service", "xray.service"]:
             (self.units / unit).unlink()
         result = self.uninstall(cached_units="xray-agent.service xray.service")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

@@ -1,22 +1,72 @@
 name: Build and release
 
-# 普通推送和 PR 生成可下载的构建产物，匹配版本的标签推送才发布 Release。
+# 仅版本标签推送触发测试、打包和发布。
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-  pull_request:
-  workflow_dispatch:
 
 permissions:
   # 构建阶段仅需读取代码；写 Release 的权限单独授予发布 job。
   contents: read
+  actions: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  web-frontend:
+    name: Web frontend
+    runs-on: ubuntu-24.04
+    env:
+      BUILD_CACHE_NAME: build-cache-npm-linux-node24
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # 普通 Actions 缓存受 ref 限制，使用 artifact 在不同 tag 间复用上次构建缓存。
+      - name: Restore frontend dependency cache
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cache_run_id=$(gh api --method GET "repos/$GH_REPO/actions/artifacts" \
+            -f name="$BUILD_CACHE_NAME" \
+            --jq '.artifacts | map(select(.expired == false)) | first | .workflow_run.id // empty')
+          if [ -n "$cache_run_id" ]; then
+            gh run download "$cache_run_id" --name "$BUILD_CACHE_NAME" --dir "$RUNNER_TEMP/build-cache"
+            tar -xzf "$RUNNER_TEMP/build-cache/npm.tar.gz" -C "$HOME"
+          fi
+      - name: Install frontend dependencies
+        run: npm ci --prefix web --ignore-scripts
+      - name: Verify frontend contract and behavior
+        run: |
+          python3 scripts/verify_web.py
+          npm run lint --prefix web
+          npm run typecheck --prefix web
+          npm test --prefix web
+      - name: Build and package frontend
+        run: |
+          npm run build --prefix web
+          sh scripts/package-frontend.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-frontend
+          path: dist/web-frontend-*.tar.gz
+          if-no-files-found: error
+      - name: Archive frontend dependency cache
+        run: |
+          mkdir -p "$RUNNER_TEMP/build-cache"
+          tar -czf "$RUNNER_TEMP/build-cache/npm.tar.gz" -C "$HOME" .npm
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUILD_CACHE_NAME }}
+          path: ${{ runner.temp }}/build-cache/npm.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
   package:
     name: Linux ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
@@ -58,20 +108,30 @@ jobs:
           sudo apt-get install --yes musl-tools
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt --target "$RUST_TARGET"
           rustup default "$RUST_TOOLCHAIN"
-      # 工具链选定后恢复 Cargo 和 target 缓存；不同 musl 架构分别存储。
-      # 仅 main 的成功构建保存缓存，标签发布和 PR 复用主分支缓存。
+      # 从最近一次成功打包保存的 artifact 恢复缓存，按工具链和 musl 架构隔离。
       - name: Restore Rust build cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: musl-${{ matrix.target }}
-          cache-workspace-crates: true
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BUILD_CACHE_NAME: build-cache-rust-${{ env.RUST_TOOLCHAIN }}-${{ matrix.target }}
+        run: |
+          cache_run_id=$(gh api --method GET "repos/$GH_REPO/actions/artifacts" \
+            -f name="$BUILD_CACHE_NAME" \
+            --jq '.artifacts | map(select(.expired == false)) | first | .workflow_run.id // empty')
+          if [ -n "$cache_run_id" ]; then
+            gh run download "$cache_run_id" --name "$BUILD_CACHE_NAME" --dir "$RUNNER_TEMP/build-cache"
+            mkdir -p "$HOME/.cargo"
+            tar -xzf "$RUNNER_TEMP/build-cache/cargo.tar.gz" -C "$HOME/.cargo"
+            tar -xzf "$RUNNER_TEMP/build-cache/target.tar.gz" -C "$GITHUB_WORKSPACE"
+          fi
       - name: Check sources and installer
         run: |
           cargo fmt --all -- --check
           python3 scripts/verify_sources.py
           python3 -m unittest discover -s tests -p 'test_*.py'
           sh -n install.sh
+          python3 scripts/verify_web.py
+          sh -n deploy/options.sh
           sh -n deploy/install.sh
           sh -n deploy/uninstall.sh
           sh -n scripts/package.sh
@@ -80,7 +140,9 @@ jobs:
       - name: Build release binary
         run: cargo build --release --locked --target "$RUST_TARGET"
       - name: Package and smoke-test CLI
-        run: sh scripts/package.sh "$RUST_TARGET" "$PACKAGE_ARCH"
+        run: |
+          sh scripts/package.sh "$RUST_TARGET" "$PACKAGE_ARCH"
+          sh scripts/package-web.sh "$RUST_TARGET" "$PACKAGE_ARCH"
       - uses: actions/upload-artifact@v7
         with:
           name: agent-linux-${{ matrix.arch }}
@@ -88,12 +150,24 @@ jobs:
           if-no-files-found: error
           overwrite: true
           retention-days: 14
+      - name: Archive Rust build cache
+        run: |
+          mkdir -p "$RUNNER_TEMP/build-cache" "$HOME/.cargo/registry" "$HOME/.cargo/git"
+          tar -czf "$RUNNER_TEMP/build-cache/cargo.tar.gz" -C "$HOME/.cargo" registry git
+          tar -czf "$RUNNER_TEMP/build-cache/target.tar.gz" -C "$GITHUB_WORKSPACE" target
+      - uses: actions/upload-artifact@v7
+        with:
+          name: build-cache-rust-${{ env.RUST_TOOLCHAIN }}-${{ matrix.target }}
+          path: ${{ runner.temp }}/build-cache/*.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
 
   release:
     name: Publish GitHub Release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     # 两种架构都完成测试和打包后才进入发布步骤，避免缺少某个架构的 Release。
-    needs: package
+    needs: [package, web-frontend]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -105,14 +179,14 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
-          pattern: agent-linux-*
+          pattern: "{agent-linux-*,web-frontend}"
           merge-multiple: true
           path: dist
       - name: Prepare release assets
         run: |
           cp install.sh dist/install.sh
           cd dist
-          sha256sum agent-*.tar.gz install.sh > SHA256SUMS
+          sha256sum agent-*.tar.gz web-*.tar.gz install.sh > SHA256SUMS
       # 首次发布先建草稿，上传全部文件后再公开，减少安装器读到不完整资源的窗口。
       - name: Upload assets and publish
         shell: bash

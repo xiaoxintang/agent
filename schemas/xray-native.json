@@ -1,0 +1,6774 @@
+{
+  "native.APIConfig": {
+    "title": "APIConfig",
+    "type": "object",
+    "properties": {
+      "tag": {
+        "type": "string"
+      },
+      "listen": {
+        "type": "string"
+      },
+      "services": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.ResponseConfig": {
+    "title": "ResponseConfig",
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string"
+      },
+      "customResponseData": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.BlackholeConfig": {
+    "title": "BlackholeConfig",
+    "type": "object",
+    "properties": {
+      "response": {
+        "$ref": "#/components/schemas/native.ResponseConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Address": {
+    "type": "string"
+  },
+  "native.PortRange": {
+    "oneOf": [
+      {
+        "type": "integer"
+      },
+      {
+        "type": "string"
+      }
+    ]
+  },
+  "native.PortList": {
+    "oneOf": [
+      {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 65535
+      },
+      {
+        "type": "string"
+      }
+    ]
+  },
+  "native.User": {
+    "title": "User",
+    "type": "object",
+    "properties": {
+      "email": {
+        "type": "string"
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Int32Range": {
+    "oneOf": [
+      {
+        "type": "integer"
+      },
+      {
+        "type": "string"
+      }
+    ]
+  },
+  "native.NameServerConfig": {
+    "oneOf": [
+      {
+        "type": "string"
+      },
+      {
+        "title": "NameServerConfig",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "clientIp": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skipFallback": {
+            "type": "boolean"
+          },
+          "domains": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "expectedIPs": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "expectIPs": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "queryStrategy": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "disableCache": {
+            "type": "boolean"
+          },
+          "serveStale": {
+            "type": "boolean"
+          },
+          "serveExpiredTTL": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "finalQuery": {
+            "type": "boolean"
+          },
+          "unexpectedIPs": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    ]
+  },
+  "native.DNSConfig": {
+    "title": "DNSConfig",
+    "type": "object",
+    "properties": {
+      "servers": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.NameServerConfig"
+        }
+      },
+      "script": {
+        "type": "string"
+      },
+      "hosts": {
+        "type": "object",
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      "clientIp": {
+        "type": "string"
+      },
+      "tag": {
+        "type": "string"
+      },
+      "queryStrategy": {
+        "type": "string"
+      },
+      "disableCache": {
+        "type": "boolean"
+      },
+      "serveStale": {
+        "type": "boolean"
+      },
+      "serveExpiredTTL": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "disableFallback": {
+        "type": "boolean"
+      },
+      "disableFallbackIfMatch": {
+        "type": "boolean"
+      },
+      "enableParallelQuery": {
+        "type": "boolean"
+      },
+      "useSystemHosts": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HostAddress": {
+    "title": "HostAddress",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": true
+  },
+  "native.HostsWrapper": {
+    "type": "object",
+    "additionalProperties": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    }
+  },
+  "native.DNSOutboundRuleConfig": {
+    "title": "DNSOutboundRuleConfig",
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string"
+      },
+      "qType": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "domain": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "rCode": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.DNSOutboundConfig": {
+    "title": "DNSOutboundConfig",
+    "type": "object",
+    "properties": {
+      "rewriteNetwork": {
+        "type": "string"
+      },
+      "rewriteAddress": {
+        "type": "string"
+      },
+      "rewritePort": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "network": {
+        "type": "string"
+      },
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "userLevel": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "rules": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.DNSOutboundRuleConfig"
+        }
+      },
+      "nonIPQuery": {
+        "type": "string"
+      },
+      "blockTypes": {
+        "type": "array",
+        "items": {
+          "type": "integer"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.DokodemoConfig": {
+    "title": "DokodemoConfig",
+    "type": "object",
+    "properties": {
+      "allowedNetwork": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "rewriteAddress": {
+        "type": "string"
+      },
+      "rewritePort": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "network": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "portMap": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "followRedirect": {
+        "type": "boolean"
+      },
+      "userLevel": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.FakeDNSPoolElementConfig": {
+    "title": "FakeDNSPoolElementConfig",
+    "type": "object",
+    "properties": {
+      "ipPool": {
+        "type": "string"
+      },
+      "poolSize": {
+        "type": "integer"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.FakeDNSConfig": {
+    "oneOf": [
+      {
+        "$ref": "#/components/schemas/native.FakeDNSPoolElementConfig"
+      },
+      {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.FakeDNSPoolElementConfig"
+        }
+      }
+    ]
+  },
+  "native.FakeDNSPostProcessingStage": {
+    "title": "FakeDNSPostProcessingStage",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": true
+  },
+  "native.FreedomConfig": {
+    "title": "FreedomConfig",
+    "type": "object",
+    "properties": {
+      "targetStrategy": {
+        "type": "string"
+      },
+      "domainStrategy": {
+        "type": "string"
+      },
+      "redirect": {
+        "type": "string"
+      },
+      "userLevel": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "fragment": {
+        "$ref": "#/components/schemas/native.Fragment"
+      },
+      "noise": {
+        "$ref": "#/components/schemas/native.Noise"
+      },
+      "noises": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.Noise"
+        }
+      },
+      "proxyProtocol": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "ipsBlocked": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "finalRules": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.FreedomFinalRuleConfig"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Fragment": {
+    "title": "Fragment",
+    "type": "object",
+    "properties": {
+      "packets": {
+        "type": "string"
+      },
+      "length": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "interval": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "maxSplit": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Noise": {
+    "title": "Noise",
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string"
+      },
+      "packet": {
+        "type": "string"
+      },
+      "delay": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "applyTo": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.FreedomFinalRuleConfig": {
+    "title": "FreedomFinalRuleConfig",
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string"
+      },
+      "network": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "port": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "ip": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "blockDelay": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.GeodataAssetConfig": {
+    "title": "GeodataAssetConfig",
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string"
+      },
+      "file": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.GeodataConfig": {
+    "title": "GeodataConfig",
+    "type": "object",
+    "properties": {
+      "cron": {
+        "type": "string"
+      },
+      "outbound": {
+        "type": "string"
+      },
+      "assets": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.GeodataAssetConfig"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HTTPAccount": {
+    "title": "HTTPAccount",
+    "type": "object",
+    "properties": {
+      "user": {
+        "type": "string"
+      },
+      "pass": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HTTPServerConfig": {
+    "title": "HTTPServerConfig",
+    "type": "object",
+    "properties": {
+      "users": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.HTTPAccount"
+        }
+      },
+      "accounts": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.HTTPAccount"
+        }
+      },
+      "allowTransparent": {
+        "type": "boolean"
+      },
+      "userLevel": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HTTPRemoteConfig": {
+    "title": "HTTPRemoteConfig",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "users": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.HTTPUser"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HTTPClientConfig": {
+    "title": "HTTPClientConfig",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      },
+      "user": {
+        "type": "string"
+      },
+      "pass": {
+        "type": "string"
+      },
+      "servers": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.HTTPRemoteConfig"
+        }
+      },
+      "headers": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HysteriaClientConfig": {
+    "title": "HysteriaClientConfig",
+    "type": "object",
+    "properties": {
+      "version": {
+        "type": "integer"
+      },
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HysteriaUserConfig": {
+    "title": "HysteriaUserConfig",
+    "type": "object",
+    "properties": {
+      "auth": {
+        "type": "string"
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HysteriaServerConfig": {
+    "title": "HysteriaServerConfig",
+    "type": "object",
+    "properties": {
+      "version": {
+        "type": "integer"
+      },
+      "users": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.HysteriaUserConfig"
+        }
+      },
+      "clients": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.HysteriaUserConfig"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.JSONConfigLoader": {
+    "title": "JSONConfigLoader",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": true
+  },
+  "native.LogConfig": {
+    "title": "LogConfig",
+    "type": "object",
+    "properties": {
+      "access": {
+        "type": "string"
+      },
+      "error": {
+        "type": "string"
+      },
+      "loglevel": {
+        "type": "string"
+      },
+      "dnsLog": {
+        "type": "boolean"
+      },
+      "maskAddress": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.LoopbackConfig": {
+    "title": "LoopbackConfig",
+    "type": "object",
+    "properties": {
+      "inboundTag": {
+        "type": "string"
+      },
+      "sniffing": {
+        "$ref": "#/components/schemas/native.SniffingConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.MasqueClientConfig": {
+    "title": "MasqueClientConfig",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "remoteDNS": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.MasqueUserConfig": {
+    "title": "MasqueUserConfig",
+    "type": "object",
+    "properties": {
+      "pass": {
+        "type": "string"
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.MasqueServerConfig": {
+    "title": "MasqueServerConfig",
+    "type": "object",
+    "properties": {
+      "users": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.MasqueUserConfig"
+        }
+      },
+      "clients": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.MasqueUserConfig"
+        }
+      },
+      "address": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "mtu": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.MetricsConfig": {
+    "title": "MetricsConfig",
+    "type": "object",
+    "properties": {
+      "tag": {
+        "type": "string"
+      },
+      "listen": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.ObservatoryConfig": {
+    "title": "ObservatoryConfig",
+    "type": "object",
+    "properties": {
+      "subjectSelector": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "probeURL": {
+        "type": "string"
+      },
+      "probeInterval": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      },
+      "enableConcurrency": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.BurstObservatoryConfig": {
+    "title": "BurstObservatoryConfig",
+    "type": "object",
+    "properties": {
+      "subjectSelector": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "pingConfig": {
+        "$ref": "#/components/schemas/native.HealthCheckSettings"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Policy": {
+    "title": "Policy",
+    "type": "object",
+    "properties": {
+      "handshake": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "connIdle": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "uplinkOnly": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "downlinkOnly": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "statsUserUplink": {
+        "type": "boolean"
+      },
+      "statsUserDownlink": {
+        "type": "boolean"
+      },
+      "statsUserOnline": {
+        "type": "boolean"
+      },
+      "bufferSize": {
+        "type": "integer"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.SystemPolicy": {
+    "title": "SystemPolicy",
+    "type": "object",
+    "properties": {
+      "statsInboundUplink": {
+        "type": "boolean"
+      },
+      "statsInboundDownlink": {
+        "type": "boolean"
+      },
+      "statsOutboundUplink": {
+        "type": "boolean"
+      },
+      "statsOutboundDownlink": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.PolicyConfig": {
+    "title": "PolicyConfig",
+    "type": "object",
+    "properties": {
+      "levels": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/native.Policy"
+        }
+      },
+      "system": {
+        "$ref": "#/components/schemas/native.SystemPolicy"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.BridgeConfig": {
+    "title": "BridgeConfig",
+    "type": "object",
+    "properties": {
+      "tag": {
+        "type": "string"
+      },
+      "domain": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.PortalConfig": {
+    "title": "PortalConfig",
+    "type": "object",
+    "properties": {
+      "tag": {
+        "type": "string"
+      },
+      "domain": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.ReverseConfig": {
+    "title": "ReverseConfig",
+    "type": "object",
+    "properties": {
+      "bridges": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.BridgeConfig"
+        }
+      },
+      "portals": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.PortalConfig"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.StrategyConfig": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "random"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.strategyEmptyConfig"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "roundRobin"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.strategyEmptyConfig"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "leastPing"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.strategyEmptyConfig"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "leastLoad"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.strategyLeastLoadConfig"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      }
+    ],
+    "discriminator": {
+      "propertyName": "type"
+    }
+  },
+  "native.BalancingRule": {
+    "title": "BalancingRule",
+    "type": "object",
+    "properties": {
+      "tag": {
+        "type": "string"
+      },
+      "selector": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "strategy": {
+        "$ref": "#/components/schemas/native.StrategyConfig"
+      },
+      "fallbackTag": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.RouterConfig": {
+    "title": "RouterConfig",
+    "type": "object",
+    "properties": {
+      "rules": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/RoutingRule"
+        }
+      },
+      "domainStrategy": {
+        "type": "string"
+      },
+      "balancers": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.BalancingRule"
+        }
+      },
+      "script": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.RouterRule": {
+    "title": "RouterRule",
+    "type": "object",
+    "properties": {
+      "ruleTag": {
+        "type": "string"
+      },
+      "outboundTag": {
+        "type": "string"
+      },
+      "balancerTag": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.WebhookRuleConfig": {
+    "title": "WebhookRuleConfig",
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string"
+      },
+      "deduplication": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "headers": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.RawFieldRule": {
+    "title": "RawFieldRule",
+    "type": "object",
+    "properties": {
+      "ruleTag": {
+        "type": "string"
+      },
+      "outboundTag": {
+        "type": "string"
+      },
+      "balancerTag": {
+        "type": "string"
+      },
+      "domain": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "domains": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "ip": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "port": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "network": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "sourceIP": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "source": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "sourcePort": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "user": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "vlessRoute": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "inboundTag": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "protocol": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "attrs": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "localIP": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "localPort": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "process": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "localOS": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "webhook": {
+        "$ref": "#/components/schemas/native.WebhookRuleConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.strategyEmptyConfig": {
+    "title": "strategyEmptyConfig",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": true
+  },
+  "native.strategyLeastLoadConfig": {
+    "title": "strategyLeastLoadConfig",
+    "type": "object",
+    "properties": {
+      "costs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.router.StrategyWeight"
+        }
+      },
+      "baselines": {
+        "type": "array",
+        "items": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "type": "integer"
+      },
+      "maxRTT": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      },
+      "tolerance": {
+        "type": "number"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HealthCheckSettings": {
+    "title": "HealthCheckSettings",
+    "type": "object",
+    "properties": {
+      "destination": {
+        "type": "string"
+      },
+      "connectivity": {
+        "type": "string"
+      },
+      "interval": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      },
+      "sampling": {
+        "type": "integer"
+      },
+      "timeout": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      },
+      "httpMethod": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.ShadowsocksUserConfig": {
+    "title": "ShadowsocksUserConfig",
+    "type": "object",
+    "properties": {
+      "method": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string",
+        "format": "password"
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      },
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.ShadowsocksServerConfig": {
+    "title": "ShadowsocksServerConfig",
+    "type": "object",
+    "properties": {
+      "method": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string",
+        "format": "password"
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      },
+      "users": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.ShadowsocksUserConfig"
+        }
+      },
+      "clients": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.ShadowsocksUserConfig"
+        }
+      },
+      "network": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.ShadowsocksServerTarget": {
+    "title": "ShadowsocksServerTarget",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string",
+        "format": "password"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.ShadowsocksClientConfig": {
+    "title": "ShadowsocksClientConfig",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string",
+        "format": "password"
+      },
+      "servers": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.ShadowsocksServerTarget"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.SocksAccount": {
+    "title": "SocksAccount",
+    "type": "object",
+    "properties": {
+      "user": {
+        "type": "string"
+      },
+      "pass": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.SocksServerConfig": {
+    "title": "SocksServerConfig",
+    "type": "object",
+    "properties": {
+      "auth": {
+        "type": "string"
+      },
+      "users": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.SocksAccount"
+        }
+      },
+      "accounts": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.SocksAccount"
+        }
+      },
+      "udp": {
+        "type": "boolean"
+      },
+      "ip": {
+        "type": "string"
+      },
+      "userLevel": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.SocksRemoteConfig": {
+    "title": "SocksRemoteConfig",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "users": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.SocksUser"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.SocksClientConfig": {
+    "title": "SocksClientConfig",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      },
+      "user": {
+        "type": "string"
+      },
+      "pass": {
+        "type": "string"
+      },
+      "servers": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.SocksRemoteConfig"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Filter": {
+    "title": "Filter",
+    "type": "object",
+    "properties": {
+      "blockedSourceIPs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "allowedSourceIPs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.TCPItem": {
+    "title": "TCPItem",
+    "type": "object",
+    "properties": {
+      "delay": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "rand": {
+        "type": "integer"
+      },
+      "randRange": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "capture": {
+        "type": "string"
+      },
+      "type": {
+        "type": "string"
+      },
+      "reuse": {
+        "type": "string"
+      },
+      "transform": {
+        "$ref": "#/components/schemas/native.CustomTransform"
+      },
+      "packet": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HeaderCustomTCP": {
+    "title": "HeaderCustomTCP",
+    "type": "object",
+    "properties": {
+      "clients": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/native.TCPItem"
+          }
+        }
+      },
+      "servers": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/native.TCPItem"
+          }
+        }
+      },
+      "errors": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/native.TCPItem"
+          }
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.FragmentMask": {
+    "title": "FragmentMask",
+    "type": "object",
+    "properties": {
+      "packets": {
+        "type": "string"
+      },
+      "length": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "delay": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "lengths": {
+        "type": "array",
+        "items": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "delays": {
+        "type": "array",
+        "items": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "maxSplit": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.NoiseItem": {
+    "title": "NoiseItem",
+    "type": "object",
+    "properties": {
+      "rand": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "randRange": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "type": {
+        "type": "string"
+      },
+      "packet": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      },
+      "delay": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.NoiseMask": {
+    "title": "NoiseMask",
+    "type": "object",
+    "properties": {
+      "reset": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "noise": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.NoiseItem"
+        }
+      },
+      "script": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.UDPItem": {
+    "title": "UDPItem",
+    "type": "object",
+    "properties": {
+      "rand": {
+        "type": "integer"
+      },
+      "randRange": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "capture": {
+        "type": "string"
+      },
+      "type": {
+        "type": "string"
+      },
+      "reuse": {
+        "type": "string"
+      },
+      "transform": {
+        "$ref": "#/components/schemas/native.CustomTransform"
+      },
+      "packet": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.CustomTransform": {
+    "title": "CustomTransform",
+    "type": "object",
+    "properties": {
+      "op": {
+        "type": "string"
+      },
+      "args": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.CustomTransformArg"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.CustomTransformArg": {
+    "title": "CustomTransformArg",
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string"
+      },
+      "bytes": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      },
+      "u64": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "reuse": {
+        "type": "string"
+      },
+      "metadata": {
+        "type": "string"
+      },
+      "transform": {
+        "$ref": "#/components/schemas/native.CustomTransform"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HeaderCustomUDP": {
+    "title": "HeaderCustomUDP",
+    "type": "object",
+    "properties": {
+      "mode": {
+        "type": "string"
+      },
+      "client": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.UDPItem"
+        }
+      },
+      "server": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.UDPItem"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.MkcpLegacy": {
+    "title": "MkcpLegacy",
+    "type": "object",
+    "properties": {
+      "header": {
+        "type": "string"
+      },
+      "value": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Salamander": {
+    "title": "Salamander",
+    "type": "object",
+    "properties": {
+      "password": {
+        "type": "string",
+        "format": "password"
+      },
+      "packetSize": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Sudoku": {
+    "title": "Sudoku",
+    "type": "object",
+    "properties": {
+      "password": {
+        "type": "string",
+        "format": "password"
+      },
+      "ascii": {
+        "type": "string"
+      },
+      "customTable": {
+        "type": "string"
+      },
+      "custom_table": {
+        "type": "string"
+      },
+      "customTables": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "custom_tables": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "paddingMin": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "padding_min": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "paddingMax": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "padding_max": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.XDNSDomain": {
+    "title": "XDNSDomain",
+    "type": "object",
+    "properties": {
+      "names": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "lenLimit": {
+        "type": "integer"
+      },
+      "labelLimit": {
+        "type": "integer"
+      },
+      "types": {
+        "type": "array",
+        "items": {
+          "type": "integer"
+        }
+      },
+      "edns0": {
+        "type": "integer"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.XDNSResolver": {
+    "title": "XDNSResolver",
+    "type": "object",
+    "properties": {
+      "addrs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "worker": {
+        "type": "integer"
+      },
+      "tlsConfig": {
+        "$ref": "#/components/schemas/native.TLSConfig"
+      },
+      "quicConfig": {
+        "$ref": "#/components/schemas/native.QuicParamsConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.XDNS": {
+    "title": "XDNS",
+    "type": "object",
+    "properties": {
+      "domains": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.XDNSDomain"
+        }
+      },
+      "resolvers": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.XDNSResolver"
+        }
+      },
+      "extraPoll": {
+        "type": "integer"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.XMC": {
+    "title": "XMC",
+    "type": "object",
+    "properties": {
+      "hostname": {
+        "type": "string"
+      },
+      "profiles": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.XMCProfile"
+        }
+      },
+      "password": {
+        "type": "string",
+        "format": "password"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.XMCProfile": {
+    "title": "XMCProfile",
+    "type": "object",
+    "properties": {
+      "username": {
+        "type": "string"
+      },
+      "uuid": {
+        "type": "string"
+      },
+      "texturesValue": {
+        "type": "string"
+      },
+      "texturesSignature": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Xicmp": {
+    "title": "Xicmp",
+    "type": "object",
+    "properties": {
+      "dgram": {
+        "type": "boolean"
+      },
+      "ips": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Realm": {
+    "title": "Realm",
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string"
+      },
+      "stunServers": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "tlsConfig": {
+        "$ref": "#/components/schemas/native.TLSConfig"
+      },
+      "ipMode": {
+        "type": "string"
+      },
+      "portMapping": {
+        "$ref": "#/components/schemas/native.realm.PortMapping"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.UDPHop": {
+    "title": "UDPHop",
+    "type": "object",
+    "properties": {
+      "mode": {
+        "type": "string"
+      },
+      "interval": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "remoteIPs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "remotePorts": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Mask": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "filter"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.Filter"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "header-custom"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.HeaderCustomUDP"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "fragment"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.FragmentMask"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "sudoku"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.Sudoku"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "xmc"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.XMC"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mkcp-legacy"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.MkcpLegacy"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "noise"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.NoiseMask"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "salamander"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.Salamander"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "xdns"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.XDNS"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "xicmp"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.Xicmp"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "realm"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.Realm"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "udphop"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.UDPHop"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      }
+    ],
+    "discriminator": {
+      "propertyName": "type"
+    }
+  },
+  "native.QuicParamsConfig": {
+    "title": "QuicParamsConfig",
+    "type": "object",
+    "properties": {
+      "congestion": {
+        "type": "string"
+      },
+      "debug": {
+        "type": "boolean"
+      },
+      "bbrProfile": {
+        "type": "string"
+      },
+      "brutalUp": {
+        "type": "string"
+      },
+      "brutalDown": {
+        "type": "string"
+      },
+      "brutalDisableLossCompensation": {
+        "type": "boolean"
+      },
+      "initStreamReceiveWindow": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "maxStreamReceiveWindow": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "initConnectionReceiveWindow": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "maxConnectionReceiveWindow": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "maxIdleTimeout": {
+        "type": "integer"
+      },
+      "keepAlivePeriod": {
+        "type": "integer"
+      },
+      "disablePathMTUDiscovery": {
+        "type": "boolean"
+      },
+      "disableChromeParrot": {
+        "type": "boolean"
+      },
+      "disableGSO": {
+        "type": "boolean"
+      },
+      "maxIncomingStreams": {
+        "type": "integer"
+      },
+      "disableStatelessReset": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.FinalMask": {
+    "title": "FinalMask",
+    "type": "object",
+    "properties": {
+      "tcp": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.Mask.tcp"
+        }
+      },
+      "udp": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.Mask.udp"
+        }
+      },
+      "quicParams": {
+        "$ref": "#/components/schemas/native.QuicParamsConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.StreamConfig": {
+    "title": "StreamConfig",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "method": {
+        "type": "string"
+      },
+      "network": {
+        "type": "string"
+      },
+      "security": {
+        "type": "string"
+      },
+      "finalmask": {
+        "$ref": "#/components/schemas/native.FinalMask"
+      },
+      "tlsSettings": {
+        "$ref": "#/components/schemas/native.TLSConfig"
+      },
+      "realitySettings": {
+        "$ref": "#/components/schemas/native.REALITYConfig"
+      },
+      "rawSettings": {
+        "$ref": "#/components/schemas/native.TCPConfig"
+      },
+      "tcpSettings": {
+        "$ref": "#/components/schemas/native.TCPConfig"
+      },
+      "xhttpSettings": {
+        "$ref": "#/components/schemas/native.SplitHTTPConfig"
+      },
+      "splithttpSettings": {
+        "$ref": "#/components/schemas/native.SplitHTTPConfig"
+      },
+      "kcpSettings": {
+        "$ref": "#/components/schemas/native.KCPConfig"
+      },
+      "grpcSettings": {
+        "$ref": "#/components/schemas/native.GRPCConfig"
+      },
+      "wsSettings": {
+        "$ref": "#/components/schemas/native.WebSocketConfig"
+      },
+      "httpupgradeSettings": {
+        "$ref": "#/components/schemas/native.HttpUpgradeConfig"
+      },
+      "hysteriaSettings": {
+        "$ref": "#/components/schemas/native.HysteriaConfig"
+      },
+      "masqueSettings": {
+        "$ref": "#/components/schemas/native.MasqueConfig"
+      },
+      "xdriveSettings": {
+        "$ref": "#/components/schemas/native.XDriveConfig"
+      },
+      "sockopt": {
+        "$ref": "#/components/schemas/native.SocketConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.NoOpConnectionAuthenticator": {
+    "title": "NoOpConnectionAuthenticator",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": true
+  },
+  "native.AuthenticatorRequest": {
+    "title": "AuthenticatorRequest",
+    "type": "object",
+    "properties": {
+      "version": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "path": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "headers": {
+        "type": "object",
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.AuthenticatorResponse": {
+    "title": "AuthenticatorResponse",
+    "type": "object",
+    "properties": {
+      "version": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "reason": {
+        "type": "string"
+      },
+      "headers": {
+        "type": "object",
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Authenticator": {
+    "title": "Authenticator",
+    "type": "object",
+    "properties": {
+      "request": {
+        "$ref": "#/components/schemas/native.AuthenticatorRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/native.AuthenticatorResponse"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.TCPConfig": {
+    "title": "TCPConfig",
+    "type": "object",
+    "properties": {
+      "header": {
+        "oneOf": [
+          {
+            "title": "Authenticator",
+            "type": "object",
+            "properties": {
+              "request": {
+                "$ref": "#/components/schemas/native.AuthenticatorRequest"
+              },
+              "response": {
+                "$ref": "#/components/schemas/native.AuthenticatorResponse"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "http"
+                ]
+              }
+            },
+            "additionalProperties": true,
+            "required": [
+              "type"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "none"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "acceptProxyProtocol": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.SplitHTTPConfig": {
+    "title": "SplitHTTPConfig",
+    "type": "object",
+    "properties": {
+      "host": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "mode": {
+        "type": "string"
+      },
+      "headers": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "xPaddingBytes": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "xPaddingObfsMode": {
+        "type": "boolean"
+      },
+      "xPaddingKey": {
+        "type": "string"
+      },
+      "xPaddingHeader": {
+        "type": "string"
+      },
+      "xPaddingPlacement": {
+        "type": "string"
+      },
+      "xPaddingMethod": {
+        "type": "string"
+      },
+      "uplinkHTTPMethod": {
+        "type": "string"
+      },
+      "sessionIDPlacement": {
+        "type": "string"
+      },
+      "sessionIDKey": {
+        "type": "string"
+      },
+      "sessionIDTable": {
+        "type": "string"
+      },
+      "sessionIDLength": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "seqPlacement": {
+        "type": "string"
+      },
+      "seqKey": {
+        "type": "string"
+      },
+      "uplinkDataPlacement": {
+        "type": "string"
+      },
+      "uplinkDataKey": {
+        "type": "string"
+      },
+      "uplinkChunkSize": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "noGRPCHeader": {
+        "type": "boolean"
+      },
+      "noSSEHeader": {
+        "type": "boolean"
+      },
+      "scMaxEachPostBytes": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "scMinPostsIntervalMs": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "scMaxBufferedPosts": {
+        "type": "integer"
+      },
+      "scStreamUpServerSecs": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "serverMaxHeaderBytes": {
+        "type": "integer"
+      },
+      "xmux": {
+        "$ref": "#/components/schemas/native.XmuxConfig"
+      },
+      "downloadSettings": {
+        "$ref": "#/components/schemas/native.StreamConfig"
+      },
+      "extra": {
+        "$ref": "#/components/schemas/native.SplitHTTPConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.XmuxConfig": {
+    "title": "XmuxConfig",
+    "type": "object",
+    "properties": {
+      "maxConcurrency": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "maxConnections": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "cMaxReuseTimes": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "hMaxRequestTimes": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "hMaxReusableSecs": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "hKeepAlivePeriod": {
+        "type": "integer"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.KCPConfig": {
+    "title": "KCPConfig",
+    "type": "object",
+    "properties": {
+      "mtu": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "tti": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "uplinkCapacity": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "downlinkCapacity": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "cwndMultiplier": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "maxSendingWindow": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "header": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      },
+      "seed": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.GRPCConfig": {
+    "title": "GRPCConfig",
+    "type": "object",
+    "properties": {
+      "authority": {
+        "type": "string"
+      },
+      "serviceName": {
+        "type": "string"
+      },
+      "multiMode": {
+        "type": "boolean"
+      },
+      "idle_timeout": {
+        "type": "integer"
+      },
+      "health_check_timeout": {
+        "type": "integer"
+      },
+      "permit_without_stream": {
+        "type": "boolean"
+      },
+      "initial_windows_size": {
+        "type": "integer"
+      },
+      "user_agent": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.WebSocketConfig": {
+    "title": "WebSocketConfig",
+    "type": "object",
+    "properties": {
+      "host": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "headers": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "acceptProxyProtocol": {
+        "type": "boolean"
+      },
+      "heartbeatPeriod": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HttpUpgradeConfig": {
+    "title": "HttpUpgradeConfig",
+    "type": "object",
+    "properties": {
+      "host": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "headers": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "acceptProxyProtocol": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Masquerade": {
+    "title": "Masquerade",
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string"
+      },
+      "dir": {
+        "type": "string"
+      },
+      "url": {
+        "type": "string"
+      },
+      "rewriteHost": {
+        "type": "boolean"
+      },
+      "xForwarded": {
+        "type": "boolean"
+      },
+      "insecure": {
+        "type": "boolean"
+      },
+      "content": {
+        "type": "string"
+      },
+      "headers": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "statusCode": {
+        "type": "integer"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HysteriaConfig": {
+    "title": "HysteriaConfig",
+    "type": "object",
+    "properties": {
+      "version": {
+        "type": "integer"
+      },
+      "auth": {
+        "type": "string"
+      },
+      "udpIdleTimeout": {
+        "type": "integer"
+      },
+      "masquerade": {
+        "$ref": "#/components/schemas/native.Masquerade"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.MasqueWarpConfig": {
+    "title": "MasqueWarpConfig",
+    "type": "object",
+    "properties": {
+      "privateKey": {
+        "type": "string",
+        "format": "password"
+      },
+      "publicKey": {
+        "type": "string"
+      },
+      "address": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.MasqueConfig": {
+    "title": "MasqueConfig",
+    "type": "object",
+    "properties": {
+      "host": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "user": {
+        "type": "string"
+      },
+      "pass": {
+        "type": "string"
+      },
+      "headers": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "warp": {
+        "$ref": "#/components/schemas/native.MasqueWarpConfig"
+      },
+      "xmux": {
+        "$ref": "#/components/schemas/native.XmuxConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.XDriveConfig": {
+    "title": "XDriveConfig",
+    "type": "object",
+    "properties": {
+      "remoteFolder": {
+        "type": "string"
+      },
+      "service": {
+        "type": "string"
+      },
+      "secrets": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "segmentBytes": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "flushIntervalMs": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "pollIntervalMs": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "maxPollIntervalMs": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "sessionTtlSeconds": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "concurrency": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "eagerWindowMs": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "holeTimeoutMs": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "template": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      },
+      "xmux": {
+        "$ref": "#/components/schemas/native.XmuxConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.LimitFallback": {
+    "title": "LimitFallback",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": true
+  },
+  "native.REALITYConfig": {
+    "title": "REALITYConfig",
+    "type": "object",
+    "properties": {
+      "masterKeyLog": {
+        "type": "string"
+      },
+      "show": {
+        "type": "boolean"
+      },
+      "target": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      },
+      "dest": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      },
+      "type": {
+        "type": "string"
+      },
+      "xver": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "serverNames": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "privateKey": {
+        "type": "string",
+        "format": "password"
+      },
+      "minClientVer": {
+        "type": "string"
+      },
+      "maxClientVer": {
+        "type": "string"
+      },
+      "maxTimeDiff": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "shortIds": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "mldsa65Seed": {
+        "type": "string"
+      },
+      "limitFallbackUpload": {
+        "$ref": "#/components/schemas/native.LimitFallback"
+      },
+      "limitFallbackDownload": {
+        "$ref": "#/components/schemas/native.LimitFallback"
+      },
+      "fingerprint": {
+        "type": "string"
+      },
+      "serverName": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string",
+        "format": "password"
+      },
+      "publicKey": {
+        "type": "string"
+      },
+      "shortId": {
+        "type": "string"
+      },
+      "mldsa65Verify": {
+        "type": "string"
+      },
+      "spiderX": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.TLSCertConfig": {
+    "title": "TLSCertConfig",
+    "type": "object",
+    "properties": {
+      "certificateFile": {
+        "type": "string"
+      },
+      "certificate": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "keyFile": {
+        "type": "string"
+      },
+      "key": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "usage": {
+        "type": "string"
+      },
+      "ocspStapling": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "oneTimeLoading": {
+        "type": "boolean"
+      },
+      "buildChain": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.TLSConfig": {
+    "title": "TLSConfig",
+    "type": "object",
+    "properties": {
+      "allowInsecure": {
+        "type": "boolean"
+      },
+      "certificates": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.TLSCertConfig"
+        }
+      },
+      "serverName": {
+        "type": "string"
+      },
+      "alpn": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "enableSessionResumption": {
+        "type": "boolean"
+      },
+      "disableSystemRoot": {
+        "type": "boolean"
+      },
+      "minVersion": {
+        "type": "string"
+      },
+      "maxVersion": {
+        "type": "string"
+      },
+      "cipherSuites": {
+        "type": "string"
+      },
+      "fingerprint": {
+        "type": "string"
+      },
+      "rejectUnknownSni": {
+        "type": "boolean"
+      },
+      "curvePreferences": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "masterKeyLog": {
+        "type": "string"
+      },
+      "pinnedPeerCertSha256": {
+        "type": "string"
+      },
+      "verifyPeerCertByName": {
+        "type": "string"
+      },
+      "echServerKeys": {
+        "type": "string"
+      },
+      "echConfigList": {
+        "type": "string"
+      },
+      "echSockopt": {
+        "$ref": "#/components/schemas/native.SocketConfig"
+      },
+      "useSystemCA": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.CustomSockoptConfig": {
+    "title": "CustomSockoptConfig",
+    "type": "object",
+    "properties": {
+      "system": {
+        "type": "string"
+      },
+      "network": {
+        "type": "string"
+      },
+      "level": {
+        "type": "string"
+      },
+      "opt": {
+        "type": "string"
+      },
+      "value": {
+        "type": "string"
+      },
+      "type": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HappyEyeballsConfig": {
+    "title": "HappyEyeballsConfig",
+    "type": "object",
+    "properties": {
+      "prioritizeIPv6": {
+        "type": "boolean"
+      },
+      "tryDelayMs": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "interleave": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "maxConcurrentTry": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.SocketConfig": {
+    "title": "SocketConfig",
+    "type": "object",
+    "properties": {
+      "mark": {
+        "type": "integer"
+      },
+      "tcpFastOpen": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      },
+      "tproxy": {
+        "type": "string"
+      },
+      "acceptProxyProtocol": {
+        "type": "boolean"
+      },
+      "domainStrategy": {
+        "type": "string"
+      },
+      "dialerProxy": {
+        "type": "string"
+      },
+      "tcpKeepAliveInterval": {
+        "type": "integer"
+      },
+      "tcpKeepAliveIdle": {
+        "type": "integer"
+      },
+      "tcpCongestion": {
+        "type": "string"
+      },
+      "tcpWindowClamp": {
+        "type": "integer"
+      },
+      "tcpMaxSeg": {
+        "type": "integer"
+      },
+      "penetrate": {
+        "type": "boolean"
+      },
+      "tcpUserTimeout": {
+        "type": "integer"
+      },
+      "v6only": {
+        "type": "boolean"
+      },
+      "interface": {
+        "type": "string"
+      },
+      "tcpMptcp": {
+        "type": "boolean"
+      },
+      "customSockopt": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.CustomSockoptConfig"
+        }
+      },
+      "addressPortStrategy": {
+        "type": "string"
+      },
+      "happyEyeballs": {
+        "$ref": "#/components/schemas/native.HappyEyeballsConfig"
+      },
+      "trustedXForwardedFor": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.TrojanServerTarget": {
+    "title": "TrojanServerTarget",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string",
+        "format": "password"
+      },
+      "flow": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.TrojanClientConfig": {
+    "title": "TrojanClientConfig",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string",
+        "format": "password"
+      },
+      "flow": {
+        "type": "string"
+      },
+      "servers": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.TrojanServerTarget"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.TrojanInboundFallback": {
+    "title": "TrojanInboundFallback",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "alpn": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "type": {
+        "type": "string"
+      },
+      "dest": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      },
+      "xver": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.TrojanUserConfig": {
+    "title": "TrojanUserConfig",
+    "type": "object",
+    "properties": {
+      "password": {
+        "type": "string",
+        "format": "password"
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      },
+      "flow": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.TrojanServerConfig": {
+    "title": "TrojanServerConfig",
+    "type": "object",
+    "properties": {
+      "users": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.TrojanUserConfig"
+        }
+      },
+      "clients": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.TrojanUserConfig"
+        }
+      },
+      "fallbacks": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.TrojanInboundFallback"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.TunConfig": {
+    "title": "TunConfig",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "desc": {
+        "type": "string"
+      },
+      "mtu": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "gateway": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "dns": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "userLevel": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "autoSystemRoutingTable": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "autoOutboundsInterface": {
+        "type": "string"
+      },
+      "autoSystemDnsToGateway": {
+        "type": "boolean"
+      },
+      "autoSystemWfpBlockLeak": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.VersionConfig": {
+    "title": "VersionConfig",
+    "type": "object",
+    "properties": {
+      "min": {
+        "type": "string"
+      },
+      "max": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.VLessInboundFallback": {
+    "title": "VLessInboundFallback",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "alpn": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "type": {
+        "type": "string"
+      },
+      "dest": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      },
+      "xver": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.VLessInboundConfig": {
+    "title": "VLessInboundConfig",
+    "type": "object",
+    "properties": {
+      "users": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.ProtocolUser"
+        }
+      },
+      "clients": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.ProtocolUser"
+        }
+      },
+      "decryption": {
+        "type": "string"
+      },
+      "fallbacks": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.VLessInboundFallback"
+        }
+      },
+      "flow": {
+        "type": "string"
+      },
+      "testseed": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.VLessReverseConfig": {
+    "title": "VLessReverseConfig",
+    "type": "object",
+    "properties": {
+      "tag": {
+        "type": "string"
+      },
+      "sniffing": {
+        "$ref": "#/components/schemas/native.SniffingConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.VLessOutboundVnext": {
+    "title": "VLessOutboundVnext",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "users": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.ProtocolUser"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.VLessOutboundConfig": {
+    "title": "VLessOutboundConfig",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      },
+      "id": {
+        "type": "string"
+      },
+      "flow": {
+        "type": "string"
+      },
+      "seed": {
+        "type": "string"
+      },
+      "encryption": {
+        "type": "string"
+      },
+      "reverse": {
+        "$ref": "#/components/schemas/native.VLessReverseConfig"
+      },
+      "testpre": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "testseed": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "vnext": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.VLessOutboundVnext"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.VMessAccount": {
+    "title": "VMessAccount",
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "security": {
+        "type": "string"
+      },
+      "experiments": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.VMessDefaultConfig": {
+    "title": "VMessDefaultConfig",
+    "type": "object",
+    "properties": {
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.VMessInboundConfig": {
+    "title": "VMessInboundConfig",
+    "type": "object",
+    "properties": {
+      "users": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.ProtocolUser"
+        }
+      },
+      "clients": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.ProtocolUser"
+        }
+      },
+      "default": {
+        "$ref": "#/components/schemas/native.VMessDefaultConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.VMessOutboundTarget": {
+    "title": "VMessOutboundTarget",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "users": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.ProtocolUser"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.VMessOutboundConfig": {
+    "title": "VMessOutboundConfig",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      },
+      "id": {
+        "type": "string"
+      },
+      "security": {
+        "type": "string"
+      },
+      "experiments": {
+        "type": "string"
+      },
+      "vnext": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.VMessOutboundTarget"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.WireGuardPeerConfig": {
+    "title": "WireGuardPeerConfig",
+    "type": "object",
+    "properties": {
+      "publicKey": {
+        "type": "string"
+      },
+      "preSharedKey": {
+        "type": "string",
+        "format": "password"
+      },
+      "endpoint": {
+        "type": "string"
+      },
+      "keepAlive": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "allowedIPs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "email": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.WireGuardConfig": {
+    "title": "WireGuardConfig",
+    "type": "object",
+    "properties": {
+      "noKernelTun": {
+        "type": "boolean"
+      },
+      "secretKey": {
+        "type": "string"
+      },
+      "address": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "peers": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.WireGuardPeerConfig"
+        }
+      },
+      "mtu": {
+        "type": "integer"
+      },
+      "reserved": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "remoteDNS": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.SniffingConfig": {
+    "title": "SniffingConfig",
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "destOverride": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "domainsExcluded": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "ipsExcluded": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "metadataOnly": {
+        "type": "boolean"
+      },
+      "routeOnly": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.MuxConfig": {
+    "title": "MuxConfig",
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "concurrency": {
+        "type": "integer"
+      },
+      "xudpConcurrency": {
+        "type": "integer"
+      },
+      "xudpProxyUDP443": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.InboundDetourConfig": {
+    "title": "InboundDetourConfig",
+    "type": "object",
+    "properties": {
+      "protocol": {
+        "type": "string"
+      },
+      "port": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "listen": {
+        "type": "string"
+      },
+      "settings": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      },
+      "tag": {
+        "type": "string"
+      },
+      "streamSettings": {
+        "$ref": "#/components/schemas/native.StreamConfig"
+      },
+      "sniffing": {
+        "$ref": "#/components/schemas/native.SniffingConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.OutboundDetourConfig": {
+    "title": "OutboundDetourConfig",
+    "type": "object",
+    "properties": {
+      "protocol": {
+        "type": "string"
+      },
+      "sendThrough": {
+        "type": "string"
+      },
+      "tag": {
+        "type": "string"
+      },
+      "settings": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      },
+      "streamSettings": {
+        "$ref": "#/components/schemas/native.StreamConfig"
+      },
+      "proxySettings": {
+        "description": "Polymorphic native JSON; use the visual field tree."
+      },
+      "mux": {
+        "$ref": "#/components/schemas/native.MuxConfig"
+      },
+      "targetStrategy": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.StatsConfig": {
+    "title": "StatsConfig",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": true
+  },
+  "native.Config": {
+    "title": "Config",
+    "type": "object",
+    "properties": {
+      "transport": {
+        "type": "object",
+        "additionalProperties": {
+          "description": "Polymorphic native JSON; use the visual field tree."
+        }
+      },
+      "env": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "log": {
+        "$ref": "#/components/schemas/native.LogConfig"
+      },
+      "routing": {
+        "$ref": "#/components/schemas/native.RouterConfig"
+      },
+      "dns": {
+        "$ref": "#/components/schemas/native.DNSConfig"
+      },
+      "inbounds": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/InboundConfig"
+        }
+      },
+      "outbounds": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/OutboundConfig"
+        }
+      },
+      "policy": {
+        "$ref": "#/components/schemas/native.PolicyConfig"
+      },
+      "api": {
+        "$ref": "#/components/schemas/native.APIConfig"
+      },
+      "metrics": {
+        "$ref": "#/components/schemas/native.MetricsConfig"
+      },
+      "stats": {
+        "$ref": "#/components/schemas/native.StatsConfig"
+      },
+      "reverse": {
+        "$ref": "#/components/schemas/native.ReverseConfig"
+      },
+      "fakeDns": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/native.FakeDNSPoolElementConfig"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/native.FakeDNSPoolElementConfig"
+            }
+          }
+        ]
+      },
+      "observatory": {
+        "$ref": "#/components/schemas/native.ObservatoryConfig"
+      },
+      "burstObservatory": {
+        "$ref": "#/components/schemas/native.BurstObservatoryConfig"
+      },
+      "version": {
+        "$ref": "#/components/schemas/native.VersionConfig"
+      },
+      "geodata": {
+        "$ref": "#/components/schemas/native.GeodataConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.protocol.SecurityConfig": {
+    "title": "protocol.SecurityConfig",
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "integer"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.realm.PortMapping": {
+    "title": "realm.PortMapping",
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "timeout": {
+        "type": "integer"
+      },
+      "lifetime": {
+        "type": "integer"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.router.StrategyWeight": {
+    "title": "router.StrategyWeight",
+    "type": "object",
+    "properties": {
+      "regexp": {
+        "type": "boolean"
+      },
+      "match": {
+        "type": "string"
+      },
+      "value": {
+        "type": "number"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.account.vless.Reverse": {
+    "title": "account.vless.Reverse",
+    "type": "object",
+    "properties": {
+      "tag": {
+        "type": "string"
+      },
+      "sniffing": {
+        "$ref": "#/components/schemas/native.proxyman.SniffingConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.proxyman.SniffingConfig": {
+    "title": "proxyman.SniffingConfig",
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "destination_override": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "domains_excluded": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.geodata.DomainRule"
+        }
+      },
+      "ips_excluded": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.geodata.IPRule"
+        }
+      },
+      "metadata_only": {
+        "type": "boolean"
+      },
+      "route_only": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.geodata.DomainRule": {
+    "title": "geodata.DomainRule",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": true
+  },
+  "native.geodata.IPRule": {
+    "title": "geodata.IPRule",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": true
+  },
+  "native.duration.Duration": {
+    "oneOf": [
+      {
+        "type": "string"
+      },
+      {
+        "type": "number"
+      }
+    ]
+  },
+  "native.SecurityType": {
+    "type": "integer"
+  },
+  "native.Reverse": {
+    "$ref": "#/components/schemas/native.account.vless.Reverse"
+  },
+  "native.StringList": {
+    "oneOf": [
+      {
+        "type": "string"
+      },
+      {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  "native.NetworkList": {
+    "oneOf": [
+      {
+        "type": "string"
+      },
+      {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  "InboundConfig": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "tunnel"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.DokodemoConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "dokodemo-door"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.DokodemoConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "http"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.HTTPServerConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "shadowsocks"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.ShadowsocksServerConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "mixed"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.SocksServerConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "socks"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.SocksServerConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "vless"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.VLessInboundConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "vmess"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.VMessInboundConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "trojan"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.TrojanServerConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "wireguard"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.WireGuardConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "hysteria"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.HysteriaServerConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "masque"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.MasqueServerConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "tun"
+            ]
+          },
+          "port": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "listen": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.TunConfig"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "sniffing": {
+            "$ref": "#/components/schemas/native.SniffingConfig"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      }
+    ],
+    "discriminator": {
+      "propertyName": "protocol"
+    }
+  },
+  "OutboundConfig": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "block"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.BlackholeConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "blackhole"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.BlackholeConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "loopback"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.LoopbackConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "direct"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.FreedomConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "freedom"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.FreedomConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "http"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.HTTPClientConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "shadowsocks"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.ShadowsocksClientConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "socks"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.SocksClientConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "vless"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.VLessOutboundConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "vmess"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.VMessOutboundConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "trojan"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.TrojanClientConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "hysteria"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.HysteriaClientConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "masque"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.MasqueClientConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "dns"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.DNSOutboundConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "wireguard"
+            ]
+          },
+          "sendThrough": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.WireGuardConfig"
+          },
+          "streamSettings": {
+            "$ref": "#/components/schemas/native.StreamConfig"
+          },
+          "proxySettings": {
+            "description": "Polymorphic native JSON; use the visual field tree."
+          },
+          "mux": {
+            "$ref": "#/components/schemas/native.MuxConfig"
+          },
+          "targetStrategy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "protocol"
+        ],
+        "additionalProperties": true
+      }
+    ],
+    "discriminator": {
+      "propertyName": "protocol"
+    }
+  },
+  "XrayConfig": {
+    "title": "Config",
+    "type": "object",
+    "properties": {
+      "transport": {
+        "type": "object",
+        "additionalProperties": {
+          "description": "Polymorphic native JSON; use the visual field tree."
+        }
+      },
+      "env": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "log": {
+        "$ref": "#/components/schemas/native.LogConfig"
+      },
+      "routing": {
+        "$ref": "#/components/schemas/native.RouterConfig"
+      },
+      "dns": {
+        "$ref": "#/components/schemas/native.DNSConfig"
+      },
+      "inbounds": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/InboundConfig"
+        }
+      },
+      "outbounds": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/OutboundConfig"
+        }
+      },
+      "policy": {
+        "$ref": "#/components/schemas/native.PolicyConfig"
+      },
+      "api": {
+        "$ref": "#/components/schemas/native.APIConfig"
+      },
+      "metrics": {
+        "$ref": "#/components/schemas/native.MetricsConfig"
+      },
+      "stats": {
+        "$ref": "#/components/schemas/native.StatsConfig"
+      },
+      "reverse": {
+        "$ref": "#/components/schemas/native.ReverseConfig"
+      },
+      "fakeDns": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/native.FakeDNSPoolElementConfig"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/native.FakeDNSPoolElementConfig"
+            }
+          }
+        ]
+      },
+      "observatory": {
+        "$ref": "#/components/schemas/native.ObservatoryConfig"
+      },
+      "burstObservatory": {
+        "$ref": "#/components/schemas/native.BurstObservatoryConfig"
+      },
+      "version": {
+        "$ref": "#/components/schemas/native.VersionConfig"
+      },
+      "geodata": {
+        "$ref": "#/components/schemas/native.GeodataConfig"
+      }
+    },
+    "additionalProperties": true,
+    "required": [
+      "api",
+      "stats",
+      "inbounds",
+      "outbounds"
+    ]
+  },
+  "RoutingRule": {
+    "title": "RawFieldRule",
+    "type": "object",
+    "properties": {
+      "ruleTag": {
+        "type": "string"
+      },
+      "outboundTag": {
+        "type": "string"
+      },
+      "balancerTag": {
+        "type": "string"
+      },
+      "domain": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "domains": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "ip": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "port": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "network": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "sourceIP": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "source": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "sourcePort": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "user": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "vlessRoute": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "inboundTag": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "protocol": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "attrs": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "localIP": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "localPort": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "process": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "localOS": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "webhook": {
+        "$ref": "#/components/schemas/native.WebhookRuleConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "RoutingConfig": {
+    "title": "RouterConfig",
+    "type": "object",
+    "properties": {
+      "rules": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/RoutingRule"
+        }
+      },
+      "domainStrategy": {
+        "type": "string"
+      },
+      "balancers": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/native.BalancingRule"
+        }
+      },
+      "script": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "BalancerConfig": {
+    "title": "BalancingRule",
+    "type": "object",
+    "properties": {
+      "tag": {
+        "type": "string"
+      },
+      "selector": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "strategy": {
+        "$ref": "#/components/schemas/native.StrategyConfig"
+      },
+      "fallbackTag": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "StreamSettings": {
+    "title": "StreamConfig",
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "method": {
+        "type": "string"
+      },
+      "network": {
+        "type": "string"
+      },
+      "security": {
+        "type": "string"
+      },
+      "finalmask": {
+        "$ref": "#/components/schemas/native.FinalMask"
+      },
+      "tlsSettings": {
+        "$ref": "#/components/schemas/native.TLSConfig"
+      },
+      "realitySettings": {
+        "$ref": "#/components/schemas/native.REALITYConfig"
+      },
+      "rawSettings": {
+        "$ref": "#/components/schemas/native.TCPConfig"
+      },
+      "tcpSettings": {
+        "$ref": "#/components/schemas/native.TCPConfig"
+      },
+      "xhttpSettings": {
+        "$ref": "#/components/schemas/native.SplitHTTPConfig"
+      },
+      "splithttpSettings": {
+        "$ref": "#/components/schemas/native.SplitHTTPConfig"
+      },
+      "kcpSettings": {
+        "$ref": "#/components/schemas/native.KCPConfig"
+      },
+      "grpcSettings": {
+        "$ref": "#/components/schemas/native.GRPCConfig"
+      },
+      "wsSettings": {
+        "$ref": "#/components/schemas/native.WebSocketConfig"
+      },
+      "httpupgradeSettings": {
+        "$ref": "#/components/schemas/native.HttpUpgradeConfig"
+      },
+      "hysteriaSettings": {
+        "$ref": "#/components/schemas/native.HysteriaConfig"
+      },
+      "masqueSettings": {
+        "$ref": "#/components/schemas/native.MasqueConfig"
+      },
+      "xdriveSettings": {
+        "$ref": "#/components/schemas/native.XDriveConfig"
+      },
+      "sockopt": {
+        "$ref": "#/components/schemas/native.SocketConfig"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.Mask.tcp": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "filter"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.Filter"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "header-custom"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.HeaderCustomTCP"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "fragment"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.FragmentMask"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "sudoku"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.Sudoku"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "xmc"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.XMC"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      }
+    ],
+    "discriminator": {
+      "propertyName": "type"
+    }
+  },
+  "native.Mask.udp": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "filter"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.Filter"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "header-custom"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.HeaderCustomUDP"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mkcp-legacy"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.MkcpLegacy"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "noise"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.NoiseMask"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "salamander"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.Salamander"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "sudoku"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.Sudoku"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "xdns"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.XDNS"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "xicmp"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.Xicmp"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "realm"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.Realm"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "udphop"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/native.UDPHop"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      }
+    ],
+    "discriminator": {
+      "propertyName": "type"
+    }
+  },
+  "NativeUser": {
+    "type": "object",
+    "properties": {
+      "email": {
+        "type": "string",
+        "minLength": 1
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "id": {
+        "type": "string"
+      },
+      "flow": {
+        "type": "string"
+      },
+      "encryption": {
+        "type": "string"
+      },
+      "xorMode": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "seconds": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "padding": {
+        "type": "string"
+      },
+      "reverse": {
+        "$ref": "#/components/schemas/native.account.vless.Reverse"
+      },
+      "testpre": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "testseed": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "security_settings": {
+        "$ref": "#/components/schemas/native.protocol.SecurityConfig"
+      },
+      "tests_enabled": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string",
+        "format": "password"
+      },
+      "method": {
+        "type": "string"
+      },
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "auth": {
+        "type": "string",
+        "format": "password"
+      },
+      "pass": {
+        "type": "string",
+        "format": "password"
+      },
+      "publicKey": {
+        "type": "string"
+      },
+      "preSharedKey": {
+        "type": "string",
+        "format": "password"
+      },
+      "endpoint": {
+        "type": "string"
+      },
+      "keepAlive": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "allowedIPs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "email"
+    ],
+    "additionalProperties": true
+  },
+  "native.ProtocolUser": {
+    "type": "object",
+    "properties": {
+      "email": {
+        "type": "string",
+        "minLength": 1
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "id": {
+        "type": "string"
+      },
+      "flow": {
+        "type": "string"
+      },
+      "encryption": {
+        "type": "string"
+      },
+      "xorMode": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "seconds": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "padding": {
+        "type": "string"
+      },
+      "reverse": {
+        "$ref": "#/components/schemas/native.account.vless.Reverse"
+      },
+      "testpre": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "testseed": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "security_settings": {
+        "$ref": "#/components/schemas/native.protocol.SecurityConfig"
+      },
+      "tests_enabled": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string",
+        "format": "password"
+      },
+      "method": {
+        "type": "string"
+      },
+      "address": {
+        "type": "string"
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "auth": {
+        "type": "string",
+        "format": "password"
+      },
+      "pass": {
+        "type": "string",
+        "format": "password"
+      },
+      "publicKey": {
+        "type": "string"
+      },
+      "preSharedKey": {
+        "type": "string",
+        "format": "password"
+      },
+      "endpoint": {
+        "type": "string"
+      },
+      "keepAlive": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "allowedIPs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.HTTPUser": {
+    "type": "object",
+    "properties": {
+      "email": {
+        "type": "string"
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "user": {
+        "type": "string"
+      },
+      "pass": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  },
+  "native.SocksUser": {
+    "type": "object",
+    "properties": {
+      "email": {
+        "type": "string"
+      },
+      "level": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "user": {
+        "type": "string"
+      },
+      "pass": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  }
+}

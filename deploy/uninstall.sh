@@ -18,7 +18,7 @@ if [ -e /usr/local/bin/xray ] || [ -L /usr/local/bin/xray ]; then
     exit 1
 fi
 units=
-for unit in xray-agent.service xray.service; do
+for unit in xray-web.service xray-agent.service xray.service; do
     unit_file="/etc/systemd/system/$unit"
     if [ -e "$unit_file" ] || [ -L "$unit_file" ]; then
         if [ ! -f "$unit_file" ] || [ "$(head -n 1 "$unit_file")" != '# Managed by xray-agent' ]; then
@@ -53,14 +53,16 @@ for unit in $units; do
         systemctl disable "$unit"
     fi
 done
-rm -f -- /etc/systemd/system/xray-agent.service /etc/systemd/system/xray.service \
+rm -f -- /etc/systemd/system/xray-web.service /etc/systemd/system/multi-user.target.wants/xray-web.service \
+    /etc/systemd/system/xray-agent.service /etc/systemd/system/xray.service \
     /etc/systemd/system/multi-user.target.wants/xray-agent.service \
     /etc/systemd/system/multi-user.target.wants/xray.service
-rm -rf -- /etc/systemd/system/xray-agent.service.d /etc/systemd/system/xray.service.d \
+rm -rf -- /etc/systemd/system/xray-web.service.d /run/systemd/system/xray-web.service.d \
+    /etc/systemd/system/xray-agent.service.d /etc/systemd/system/xray.service.d \
     /run/systemd/system/xray-agent.service.d /run/systemd/system/xray.service.d
 systemctl daemon-reload
 
 # 先移除可执行程序，再删除包含更新锁的状态目录。
 rm -f -- /usr/local/bin/agent /usr/local/bin/agent.new
-rm -rf -- /etc/xray-agent /etc/xray /opt/xray /var/lib/xray-agent /var/log/xray /run/xray
+rm -rf -- /etc/xray-agent /etc/xray /opt/xray /var/lib/xray-agent /var/log/xray /run/xray /opt/xray-web /var/lib/xray-web
 echo "Agent and managed Xray uninstalled; all configuration and state removed."

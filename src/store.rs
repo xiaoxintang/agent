@@ -261,6 +261,19 @@ impl Store {
         Ok(())
     }
 
+    /// Restore only an offline installation change, preserving unrelated pending RPCs.
+    pub fn restore_installation(&self, revision: i64, sync_state: &str) -> Result<()> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        transaction.execute(
+            "UPDATE state SET revision=?1,sync_state=?2 WHERE singleton=1",
+            params![revision, sync_state],
+        )?;
+        transaction.execute("UPDATE operations SET phase='failed',error='interrupted installation rolled back' WHERE kind='installation' AND phase NOT IN ('complete','failed','reconciled')",[])?;
+        transaction.commit()?;
+        Ok(())
+    }
+
     pub fn restore_revision(&self, revision: i64) -> Result<()> {
         // 切回旧快照不代表旧运行时已恢复，重启和健康检查完成前仍需保持待确认。
         self.connection()?.execute(
@@ -396,5 +409,42 @@ mod tests {
         let store = Store::open(&path, &json!({})).unwrap();
         assert_eq!(store.committed().unwrap().config, candidate);
         assert_eq!(store.sync_state().unwrap(), "publication_pending");
+    }
+}
+
+#[cfg(test)]
+mod installation_tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn installation_recovery_preserves_an_unrelated_uncertain_rpc() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = Store::open(&directory.path().join("db"), &json!({"inbounds":[]})).unwrap();
+        let revision = store.committed().unwrap().revision;
+        let operation = store.begin("mutation", None, json!({})).unwrap();
+        store.fail(&operation.id, "timeout", true).unwrap();
+        store
+            .restore_installation(revision, "needs_confirmation")
+            .unwrap();
+        assert_eq!(store.sync_state().unwrap(), "needs_confirmation");
+        assert_eq!(store.pending().unwrap()[0].id, operation.id);
+    }
+    #[test]
+    fn sqlite_backup_contains_committed_wal_rows() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("source.db");
+        let destination = directory.path().join("backup.db");
+        let store = Store::open(&source, &json!({"inbounds":[]})).unwrap();
+        let pending = store
+            .begin("mutation", None, json!({"test":"WAL"}))
+            .unwrap();
+        let connection =
+            Connection::open_with_flags(&source, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .unwrap();
+        connection
+            .backup(rusqlite::MAIN_DB, &destination, None)
+            .unwrap();
+        let backup = Store::open(&destination, &json!({})).unwrap();
+        assert_eq!(backup.pending().unwrap()[0].id, pending.id);
     }
 }

@@ -1,0 +1,261 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #f4f6fa;
+  color: #17243b;
+}
+.shell {
+  min-height: 100vh;
+}
+.sidebar {
+  background: #101b32 !important;
+  position: relative;
+}
+.sidebar .ant-menu {
+  background: transparent;
+}
+.brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 30px 25px;
+  color: #fff;
+  letter-spacing: 2px;
+  font-size: 19px;
+  font-weight: 700;
+}
+.brand > .anticon {
+  font-size: 30px;
+  color: #91adff;
+}
+.brand span {
+  font-size: 11px;
+  color: #91adff;
+}
+.brand small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  color: #8d9bb4;
+  margin-top: 6px;
+}
+.sidebar .ant-menu-item-group-title {
+  font-size: 11px;
+  color: #8494ad;
+  margin: 20px 10px 2px;
+}
+.sidebar .ant-menu-item {
+  margin-block: 6px;
+}
+.sidebar-footer {
+  padding: 28px;
+  color: #6f829f;
+  font-size: 11px;
+  line-height: 1.9;
+}
+.topbar {
+  height: 78px;
+  padding: 0 32px;
+  background: #fff;
+  border-bottom: 1px solid #e9edf4;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.content {
+  padding: 30px 34px;
+  max-width: 1800px;
+  width: 100%;
+  margin: 0 auto;
+}
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.page-heading h2 {
+  margin-top: 7px !important;
+  margin-bottom: 0 !important;
+  letter-spacing: -0.5px;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+.metrics .ant-card {
+  border: 0;
+  box-shadow: 0 3px 20px #15264905;
+}
+.metrics .ant-statistic-content {
+  font-weight: 600;
+  margin-top: 10px;
+}
+.overview-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(400px, 1.6fr);
+  gap: 22px;
+}
+.operation-card {
+  margin-bottom: 20px;
+}
+.operation-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 1.1fr) minmax(320px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.operation-grid > .ant-card {
+  min-width: 0;
+}
+.parameter {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.schema-row {
+  padding: 11px 0;
+  border-bottom: 1px solid #eef1f7;
+}
+.schema-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+}
+.schema-value {
+  min-width: 0;
+  flex: 1;
+}
+.schema-row > .schema-value {
+  padding-left: 13px;
+  border-left: 2px solid #e7edfa;
+}
+.schema-add {
+  margin-top: 16px;
+}
+.schema-branch > .ant-select {
+  margin-bottom: 12px;
+}
+.schema-array-item {
+  display: flex;
+  gap: 9px;
+  padding: 10px 0;
+  align-items: start;
+}
+.submit-row {
+  margin-top: 25px;
+}
+.response {
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #f5f7fb;
+  padding: 18px;
+  border-radius: 8px;
+  max-height: 680px;
+  overflow: auto;
+  margin: 0;
+}
+.preview {
+  max-height: 360px;
+  margin-top: 16px;
+}
+.login {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 440px;
+  align-items: center;
+  gap: 8vw;
+  padding: 8vh 12vw;
+  background:
+    radial-gradient(ellipse at 0% 0%, #e4ebfc, transparent 60%), #f6f8fc;
+}
+.login-copy h1 {
+  font-size: 42px !important;
+  letter-spacing: -1px;
+}
+.login-copy p {
+  font-size: 17px;
+  color: #66758e;
+  line-height: 1.8;
+}
+.brand-mark {
+  font-size: 56px;
+  color: #315bd6;
+}
+.login-card {
+  padding: 20px;
+  border: 0;
+  box-shadow: 0 20px 90px #17294712;
+}
+.login-icon {
+  font-size: 28px;
+  color: #315bd6;
+}
+.boot {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+}
+.ant-table-wrapper {
+  overflow: auto;
+}
+.ant-layout-content > .ant-card {
+  min-width: 0;
+}
+@media (max-width: 1100px) {
+  .overview-grid,
+  .operation-grid {
+    grid-template-columns: 1fr;
+  }
+  .login {
+    padding: 40px;
+    gap: 30px;
+    grid-template-columns: 1fr 420px;
+  }
+  .topbar {
+    padding: 0 18px;
+  }
+  .topbar .ant-typography-secondary {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .content {
+    padding: 20px 14px;
+  }
+  .metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .login {
+    grid-template-columns: 1fr;
+    padding: 30px 20px;
+  }
+  .login-copy h1 {
+    font-size: 28px !important;
+  }
+  .login-copy {
+    display: none;
+  }
+  .operation-card .ant-select {
+    min-width: 200px !important;
+  }
+  .topbar {
+    padding: 0 10px;
+  }
+  .topbar .ant-select {
+    width: 150px !important;
+  }
+  .topbar > .ant-space:last-child > .ant-space-item:first-child {
+    display: none;
+  }
+}

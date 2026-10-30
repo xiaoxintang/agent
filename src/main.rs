@@ -1,18 +1,6 @@
 //! 命令行入口：区分无需初始化的查询命令、HTTP 常驻服务和 systemd 辅助命令。
 
-mod api;
-mod app;
-mod config;
-mod error;
-mod grpc;
-mod mutation;
-mod openapi;
-mod process;
-mod store;
-#[cfg(test)]
-mod testsupport;
-mod update;
-mod versions;
+use agent::{api, app, config, error, installation, openapi, process, update, web_config};
 
 use clap::{Parser, Subcommand};
 use error::{Error, Result};
@@ -42,7 +30,32 @@ enum Commands {
     /// Print the agent version without requiring root or initialization.
     Version,
     /// Initialize credentials and SQLite; print a new token only on first initialization.
-    Init,
+    Init(installation::Options),
+    /// Manage the local Web administrator (root only).
+    Web {
+        #[command(subcommand)]
+        command: WebCommand,
+    },
+    /// Print installation defaults as validated shell assignments.
+    #[command(hide = true)]
+    InstallDefaults,
+    /// Restore an interrupted installation configuration change.
+    #[command(hide = true)]
+    InstallRecover,
+    #[command(hide = true)]
+    VerifyWeb {
+        #[arg(long)]
+        backend: PathBuf,
+        #[arg(long)]
+        frontend: PathBuf,
+    },
+    #[command(hide = true)]
+    InstallHealth,
+    #[command(hide = true)]
+    InstallBackup {
+        #[arg(long)]
+        output: PathBuf,
+    },
     /// Print the current Bearer token from the initialized configuration.
     Token,
     /// Save and print a new Bearer token, then restart the Agent to apply it.
@@ -64,6 +77,14 @@ enum Commands {
         #[arg(long)]
         output: Option<PathBuf>,
     },
+}
+
+#[derive(Subcommand)]
+enum WebCommand {
+    /// Print the current local Web username and password.
+    Credentials,
+    /// Generate a new password and invalidate existing Web sessions.
+    ResetPassword,
 }
 
 fn require_linux_root() -> Result<()> {
@@ -114,6 +135,9 @@ async fn run(cli: Cli) -> Result<()> {
         }
         return Ok(());
     }
+    if let Commands::VerifyWeb { backend, frontend } = cli.command {
+        return installation::verify_web(&backend, &frontend).await;
+    }
     require_linux_root()?;
     if let Commands::Update(request) = cli.command {
         return update::run(request).await;
@@ -137,6 +161,19 @@ async fn run(cli: Cli) -> Result<()> {
         }
         return Ok(());
     }
+    installation::recover()?;
+    if matches!(cli.command, Commands::InstallDefaults) {
+        return installation::defaults();
+    }
+    if matches!(cli.command, Commands::InstallRecover) {
+        return Ok(());
+    }
+    if let Commands::InstallBackup { output } = cli.command {
+        return installation::backup_state(&output);
+    }
+    if matches!(cli.command, Commands::InstallHealth) {
+        return installation::health().await;
+    }
     let config_path = Path::new(config::DEFAULT_CONFIG);
     match cli.command {
         Commands::Token => {
@@ -144,7 +181,11 @@ async fn run(cli: Cli) -> Result<()> {
             return Ok(());
         }
         Commands::ResetToken => {
-            println!("{}", config::reset_token(config_path)?);
+            let token = config::reset_token(config_path)?;
+            println!("{token}");
+            if Path::new(web_config::LOCAL_AGENT).exists() {
+                web_config::sync_local(&config::load(config_path)?)?;
+            }
             process::Systemd::restart_agent().await.map_err(|error| {
                 Error::Unavailable(format!(
                     "New token saved, but restarting the Agent failed: {error}. Retry with: sudo systemctl restart xray-agent.service"
@@ -154,18 +195,22 @@ async fn run(cli: Cli) -> Result<()> {
         }
         _ => {}
     }
-    if matches!(cli.command, Commands::Init) {
-        let token = config::initialize(config_path)?;
-        let settings = config::load(config_path)?;
-        let paths = config::Paths::default();
-        paths.prepare()?;
-        store::Store::open(&paths.database, &config::initial_xray(&settings))?;
-        if let Some(token) = token {
-            println!("Bearer token (shown once): {token}");
-        } else {
-            println!("Already initialized; existing credentials preserved.");
+    if let Commands::Web { command } = cli.command {
+        let path = Path::new(web_config::CREDENTIALS);
+        if !path.exists() {
+            return Err(Error::NotFound(
+                "Web account is not initialized; enable Web with the installer first".into(),
+            ));
         }
+        let value = match command {
+            WebCommand::Credentials => web_config::Credentials::load(path)?,
+            WebCommand::ResetPassword => web_config::Credentials::reset(path)?,
+        };
+        println!("Username: {}\nPassword: {}", value.username, value.password);
         return Ok(());
+    }
+    if let Commands::Init(options) = cli.command {
+        return installation::initialize(options).await;
     }
     let settings = config::load(config_path)?;
     let app = app::App::open(settings, config::Paths::default())?;
@@ -208,7 +253,13 @@ async fn run(cli: Cli) -> Result<()> {
             drop(lock);
             Ok(())
         }
-        Commands::Init
+        Commands::Init(_)
+        | Commands::Web { .. }
+        | Commands::InstallDefaults
+        | Commands::InstallRecover
+        | Commands::VerifyWeb { .. }
+        | Commands::InstallHealth
+        | Commands::InstallBackup { .. }
         | Commands::Token
         | Commands::ResetToken
         | Commands::Openapi { .. }
@@ -301,5 +352,44 @@ async fn shutdown() {
     #[cfg(not(unix))]
     {
         let _ = tokio::signal::ctrl_c().await;
+    }
+}
+
+#[cfg(test)]
+mod installation_cli_tests {
+    use super::*;
+    #[test]
+    fn installation_ports_and_web_commands_parse_independently() {
+        let cli = Cli::try_parse_from([
+            "agent",
+            "init",
+            "--agent-port",
+            "9000",
+            "--grpc-port",
+            "12000",
+            "--web",
+            "yes",
+            "--web-port",
+            "4000",
+        ])
+        .unwrap();
+        match cli.command {
+            Commands::Init(options) => {
+                assert_eq!(options.agent_port, Some(9000));
+                assert_eq!(options.grpc_port, Some(12000));
+                assert_eq!(options.web_port, Some(4000));
+                assert_eq!(options.web.as_deref(), Some("yes"));
+            }
+            _ => panic!("expected init"),
+        }
+        for args in [
+            ["agent", "web", "credentials"],
+            ["agent", "web", "reset-password"],
+        ] {
+            assert!(Cli::try_parse_from(args).is_ok());
+        }
+        for port in ["0", "65536", "-1"] {
+            assert!(Cli::try_parse_from(["agent", "init", "--agent-port", port]).is_err());
+        }
     }
 }

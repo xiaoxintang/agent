@@ -1,0 +1,25 @@
+# Managed by xray-agent
+[Unit]
+Description=Xray Web management platform
+After=network-online.target xray-agent.service
+Wants=network-online.target xray-agent.service
+
+[Service]
+Type=exec
+User=xray-web
+Group=xray-web
+UMask=0077
+ExecStart=/opt/xray-web/current/agent-web
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=600
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/xray-web
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

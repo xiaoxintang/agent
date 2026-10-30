@@ -38,7 +38,7 @@ sudo sh deploy/install.sh /path/to/agent
 
 脚本不执行构建。程序安装到 `/usr/local/bin/agent`，运行 `agent init` 后启动 `xray-agent.service`。首次初始化向终端输出随机 Bearer Token，重复初始化保留凭据。Token 保存于 `/etc/xray-agent/agent.toml`，权限 `0600`；日志不输出 Token。自定义 unit 设置使用 systemd drop-in；更新会替换由 Agent 管理的 unit。
 
-默认 HTTP 地址为 `0.0.0.0:8080`，Xray gRPC 地址为 `127.0.0.1:10085`。管理接口使用 Bearer Token，HTTP 本身不提供 TLS；远程部署通过已有 HTTPS 反向代理或受信网络访问。
+安装时分别询问 Agent HTTP、Xray 管理 gRPC 是否采用默认端口，每项独立选择 `[Y/n]`；选择 N 后输入该项端口。默认 HTTP 地址为 `0.0.0.0:8080`，Xray gRPC 地址为 `127.0.0.1:10085`。管理接口使用 Bearer Token，HTTP 本身不提供 TLS；远程部署通过已有 HTTPS 反向代理或受信网络访问。
 
 安装脚本首次安装 Xray 时会创建、启用并启动 `xray.service`。Xray 安装失败时，脚本返回失败，但仍启动 Agent 管理接口，以便通过 HTTP 重试或指定其他版本。Agent 不依赖 Xray 已安装或已启动。已有非本 Agent 管理的 Xray 安装或 unit 会产生冲突，不会直接覆盖。
 
@@ -52,6 +52,77 @@ curl -H "Authorization: Bearer $AGENT_TOKEN" \
 ```
 
 `read -s` 示例适用于 Bash/Zsh。安装及版本切换为同步请求，包含下载和健康检查，调用方需留出足够的 HTTP 超时时间。客户端断开不会取消已经开始的操作。
+
+## Web 管理平台（可选）
+
+Web 使用 Rust 后端和 Vite / React / TypeScript / Ant Design 前端，由独立的 `xray-web.service` 提供静态页面及 API。安装服务器不需要 Node.js，不执行 Rust 或前端构建。
+
+安装器逐项交互，关闭 Web 时不会询问 Web 端口或下载 Web 包：
+
+```text
+Agent HTTP 是否使用默认端口 8080？[Y/n]
+Xray 管理 gRPC 是否使用默认端口 10085？[Y/n]
+是否启用 Web 服务？[y/N]
+  Web 是否使用默认端口 3000？[Y/n]
+```
+
+每个端口选择 N 后只输入该项的自定义端口。显式参数只跳过对应问题；交互读取 `/dev/tty`，支持管道安装。没有终端时必须传 `--non-interactive`。参数优先于已有设置，已有设置优先于代码默认值；首次安装默认不开启 Web，重复安装及更新保留已有状态。
+
+例如，使用下载的安装脚本无交互安装并启用 Web：
+
+```sh
+sudo sh install.sh --non-interactive \
+  --agent-port 9000 --grpc-port 12000 --web yes --web-port 4000
+```
+
+本地预编译包启用 Web 时，显式提供同版本的两份解压产物：
+
+```sh
+sudo sh deploy/install.sh ./agent --web yes \
+  --web-backend /path/to/agent-web --web-frontend /path/to/frontend
+```
+
+Web 前后端和本机 Agent 必须完全同版本，安装器校验摘要、架构及版本；Web 启动时再次核对本机 Agent 和前端版本。开启 Web 的主机通过 `agent update` 同步更新三个组件，先下载并校验全部文件再切换，服务未就绪时恢复旧程序、配置与 Agent 数据库。备份位于 `/var/lib/xray-agent/install-transaction`，回滚失败时保留，下一次安装会先恢复。更改已有 gRPC 端口时，安装器停止 Xray，验证并更新已提交配置，再恢复原运行状态。
+
+首次启用后自动连接本机 Agent，并在安装终端输出随机 Web 用户名、密码和访问地址。Web 与 Agent HTTP 均应通过既有 HTTPS 反向代理或受信网络访问；在 `/etc/xray-agent/web.toml` 中设置 `secure_cookie = true` 可要求浏览器只通过 HTTPS 发送会话 Cookie。
+
+```sh
+sudo agent web credentials      # 查看当前 Web 用户名、密码
+sudo agent web reset-password   # 生成并输出新密码，保留用户名，立即使旧会话失效
+sudo systemctl status xray-web.service
+```
+
+Web 管理员用于登录平台，与全局 Xray 用户完全独立。Xray 用户可分配到多个 Agent 的多个入站，每项分配独立生成协议凭据。已有入站用户需明确接管，接管保留原凭据，并核对运行时后确认生效。撤销后可以重新分配；全局用户删除要等待全部远端撤销完成。
+
+Web 页面覆盖全部 39 个 Agent 管理操作，提供完整配置、入站、出站、统计、路由、SSE、日志和探测的可视化字段表单。原生配置字段从固定的 Xray v26.10.21 上游提交提取；新字段和任意原生 JSON 值使用可视化字段树编辑，不要求手写 JSON。修改已纳管资源时先预览影响，并同步更新分配期望。
+
+操作通过持久化任务执行：提交不等于生效；超时先核对配置和运行时再重试，不能确认的非配置操作进入人工处理状态。Agent 一致性异常时暂停配置写入，由管理员显式恢复。远程 Agent 可以不同版本，页面按其 OpenAPI 提供操作，并保留真实错误和 `501`。Agent 更新返回 `202` 时任务标记为“上游已接收”，最终结果仍需核对实际版本及更新服务日志。
+
+Web 业务数据库为 `/var/lib/xray-web/state.db`，不直接修改 Agent 数据库。Web 服务使用独立 `xray-web` 系统用户；凭据和本机连接配置仅对 root 和该服务账户开放。为满足密码查看要求，凭据文件保存可恢复密码，登录使用 Argon2id 哈希；HTTP 不提供当前密码查看接口。会话为 24 小时服务端会话，Cookie 为 HttpOnly、SameSite=Strict；密码重置会撤销现有会话和事件订阅。Agent Token 重置也会同步本机 Web 连接信息。
+
+前端采用 create-vite 9.3.3 的 React TypeScript 模板配置，使用 Vite 8、TypeScript 7、React 19、Ant Design 6 和 Oxlint。浏览器代码与 Vite 配置分别由 `tsconfig.app.json`、`tsconfig.node.json` 检查。
+
+代码按职责拆分：`web/src/pages` 保存业务页面和弹窗，`operations` 保存接口表单与执行逻辑，`schema` 保存递归字段编辑器，`state` 管理共享数据。Rust 的 `src/web` 按认证、请求处理、数据库和任务执行分模块；接口注册和契约覆盖检查仍共用现有清单。
+
+Web API 契约由 `/api/openapi.json` 或 `agent-web --openapi` 提供。维护入口：
+
+```sh
+python3 scripts/generate_web_operations.py
+python3 scripts/generate_native_schema.py /path/to/pinned/Xray-core
+python3 scripts/verify_web.py
+npm ci --prefix web --ignore-scripts
+npm run lint --prefix web
+npm run typecheck --prefix web
+npm test --prefix web
+```
+
+生成原生 schema 不访问网络、不运行 Go 编译器；来源与逐文件 SHA-256 保存在 `schemas/xray-native-source.json`。CI 只构建一次前端，并分别打包 amd64、arm64 的 Rust 后端，随同 Agent 发布可选包：
+
+```text
+web-backend-v0.1.2-linux-amd64.tar.gz
+web-backend-v0.1.2-linux-arm64.tar.gz
+web-frontend-v0.1.2.tar.gz
+```
 
 ## 命令行
 
@@ -75,7 +146,7 @@ agent openapi --output openapi.json
 
 `token` 和 `reset-token` 需要 root 及已有的有效配置，标准输出只包含 Token。`reset-token` 使用系统安全随机源生成新 Token，原子更新 `/etc/xray-agent/agent.toml` 并保持权限 `0600`，保留监听地址和 gRPC 地址。保存并打印新 Token 后自动重启 `xray-agent.service`，重启后旧 Token 失效。重启失败时返回非零退出码，保留已保存的新 Token，并提示执行 `sudo systemctl restart xray-agent.service` 重试。
 
-`sudo agent uninstall` 无需读取有效配置，直接停止并禁用 `xray-agent.service` 和受管的 `xray.service`，移除服务定义、额外的 systemd 配置和 Agent 程序，并删除 `/etc/xray-agent`、`/etc/xray`、`/opt/xray`、`/var/lib/xray-agent`、`/var/log/xray`、`/run/xray`。Token、SQLite（含 WAL）、工作目录和全部 Xray 版本一并删除，且不保留备份。检测到其他方式安装的 Xray 或非受管服务时会在停止服务和删除文件前拒绝卸载；更新进行中也会拒绝卸载，待更新完成后重试。
+`sudo agent uninstall` 无需读取有效配置，直接停止并禁用 `xray-agent.service` 和受管的 `xray.service`，移除服务定义、额外的 systemd 配置和 Agent 程序，并删除 Web 服务、`/opt/xray-web`、`/var/lib/xray-web` 以及 `/etc/xray-agent`、`/etc/xray`、`/opt/xray`、`/var/lib/xray-agent`、`/var/log/xray`、`/run/xray`。Token、SQLite（含 WAL）、工作目录和全部 Xray 版本一并删除，且不保留备份。检测到其他方式安装的 Xray 或非受管服务时会在停止服务和删除文件前拒绝卸载；更新进行中也会拒绝卸载，待更新完成后重试。
 
 ## Agent 更新
 
@@ -254,6 +325,7 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_NET_ADMIN CAP_NET_RAW
 
 ```sh
 python3 scripts/verify_sources.py
+python3 scripts/verify_web.py
 cargo fmt --all -- --check
 sh -n deploy/install.sh
 sh -n install.sh
