@@ -22,7 +22,7 @@ jobs:
       BUILD_CACHE_NAME: build-cache-npm-linux-node24
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
       # 普通 Actions 缓存受 ref 限制，使用 artifact 在不同 tag 间复用上次构建缓存。
