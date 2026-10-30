@@ -20,9 +20,11 @@ curl -fsSL https://github.com/xiaoxintang/agent/releases/latest/download/install
 curl -fsSL https://github.com/xiaoxintang/agent/releases/latest/download/install.sh | sudo sh -s -- --version v0.1.0
 ```
 
-脚本自动识别 amd64/arm64，下载对应安装包，校验 Release 中的 SHA-256，然后初始化配置并启用 systemd 服务。重复执行用于更新 Agent，保留现有 Token、SQLite 和 Xray 配置。使用 fork 时传入 `--repo OWNER/REPO`。下载脚本不依赖 Rust、Python 或 C 编译器。
+脚本自动识别 amd64/arm64，下载对应安装包，校验 Release 中的 SHA-256，然后初始化配置、安装默认版本的 Xray 并启用 systemd 服务。重复执行用于更新 Agent，保留现有 Token、SQLite、Xray 版本和配置。使用 fork 时传入 `--repo OWNER/REPO`。下载脚本不依赖 Rust、Python 或 C 编译器。
 
-离线部署时解压对应 Release 安装包，在解压目录执行：
+默认 Xray 版本在项目的 `config/xray-version` 中维护，初始值为 `26.10.21`（不带 `v`）。该配置嵌入发布的 Agent 二进制，修改后随下一次发布生效；安装时自动转换为官方标签 `v26.10.21`。它与 Protobuf/RPC 的兼容性基准独立。
+
+使用本地 Agent 安装包部署时，解压后在解压目录执行（首次安装 Xray 仍需访问 GitHub）：
 
 ```sh
 sudo sh deploy/install.sh ./agent
@@ -38,7 +40,7 @@ sudo sh deploy/install.sh /path/to/agent
 
 默认 HTTP 地址为 `0.0.0.0:8080`，Xray gRPC 地址为 `127.0.0.1:10085`。管理接口使用 Bearer Token，HTTP 本身不提供 TLS；远程部署通过已有 HTTPS 反向代理或受信网络访问。
 
-首次通过 HTTP 安装 Xray 后才创建、启用并启动 `xray.service`。Agent 不依赖 Xray 已安装或已启动。已有非本 Agent 管理的 Xray 安装或 unit 会产生冲突，不会直接覆盖。
+安装脚本首次安装 Xray 时会创建、启用并启动 `xray.service`。Xray 安装失败时，脚本返回失败，但仍启动 Agent 管理接口，以便通过 HTTP 重试或指定其他版本。Agent 不依赖 Xray 已安装或已启动。已有非本 Agent 管理的 Xray 安装或 unit 会产生冲突，不会直接覆盖。
 
 ```sh
 export AGENT_URL=http://127.0.0.1:8080
@@ -60,11 +62,48 @@ agent -v                 # 版本号，也支持 --version、-V
 agent version            # 版本号子命令，无需 root
 agent --help             # 所有命令与参数
 sudo agent init          # 初始化，重复执行保留配置和 Token
+sudo agent token         # 打印当前 Token
+sudo agent reset-token   # 生成、保存并打印新 Token，自动重启 Agent 生效
+sudo agent install-xray  # 安装项目配置的默认 Xray 版本；已有活动版本时保留，需先停止 Agent 服务
+sudo agent update        # 更新 Agent 到最新稳定 Release
+sudo agent uninstall     # 卸载 Agent、受管 Xray，并删除全部配置与数据
 sudo agent serve         # 前台运行 HTTP Agent
 agent openapi --output openapi.json
 ```
 
 `prepare-xray`、`restore-xray` 为 systemd 使用的辅助命令。常驻服务由 `systemctl status/start/stop/restart xray-agent.service` 管理；Xray 进程通过 HTTP 管理接口控制。
+
+`token` 和 `reset-token` 需要 root 及已有的有效配置，标准输出只包含 Token。`reset-token` 使用系统安全随机源生成新 Token，原子更新 `/etc/xray-agent/agent.toml` 并保持权限 `0600`，保留监听地址和 gRPC 地址。保存并打印新 Token 后自动重启 `xray-agent.service`，重启后旧 Token 失效。重启失败时返回非零退出码，保留已保存的新 Token，并提示执行 `sudo systemctl restart xray-agent.service` 重试。
+
+`sudo agent uninstall` 无需读取有效配置，直接停止并禁用 `xray-agent.service` 和受管的 `xray.service`，移除服务定义、额外的 systemd 配置和 Agent 程序，并删除 `/etc/xray-agent`、`/etc/xray`、`/opt/xray`、`/var/lib/xray-agent`、`/var/log/xray`、`/run/xray`。Token、SQLite（含 WAL）、工作目录和全部 Xray 版本一并删除，且不保留备份。检测到其他方式安装的 Xray 或非受管服务时会在停止服务和删除文件前拒绝卸载；更新进行中也会拒绝卸载，待更新完成后重试。
+
+## Agent 更新
+
+命令行更新默认使用 `xiaoxintang/agent` 的最新稳定 Release，也可以指定标签：
+
+```sh
+sudo agent update
+sudo agent update --target-version v0.1.2
+```
+
+`--target-version` 指定更新目标；`--version` 仍用于查询当前 Agent 版本。命令等待更新结束，失败时返回非零退出码。更新复用安装器的架构识别和 SHA-256 校验，通过后替换 Agent 并重启 `xray-agent.service`，保留 Token、SQLite、systemd drop-in 及 Xray 版本、配置和运行状态。更新模式不安装缺失的 Xray。
+
+HTTP 使用相同 Bearer Token，向 `POST /api/v1/agent/update` 提交；省略请求体或传 `{}` 更新到最新稳定版：
+
+```sh
+curl -X POST -H "Authorization: Bearer $AGENT_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"version":"v0.1.2"}' "$AGENT_URL/api/v1/agent/update"
+```
+
+接口返回 `202 Accepted`，包含 `current_version`、`requested_version` 和 `unit`，表示任务已提交。更新在独立的 `xray-agent-update.service` 中执行，不随 Agent 重启终止；固定服务名和更新锁阻止更新任务重叠。执行结果通过日志查看，完成后使用 `agent -v` 核对版本：
+
+```sh
+sudo journalctl -u xray-agent-update.service
+agent -v
+```
+
+也可使用下载脚本的 `--update` 模式，例如 fork 使用 `sh install.sh --update --repo OWNER/REPO`。该模式要求已经安装 Agent。
 
 ## GitHub Actions 打包与发布
 
@@ -103,11 +142,11 @@ SHA256SUMS
 - `/openapi.json`：由 `utoipa`、接口注册表和固定版本的 Protobuf descriptor 生成的 OpenAPI 3.1。
 - `agent openapi --output openapi.json`：离线导出，无需 root 或初始化。
 
-文档端点不需要 Token，也不包含主机配置或凭据。所有管理接口位于 `/api/v1/xray`，均要求鉴权。请求体上限为 4 MiB。
+文档端点不需要 Token，也不包含主机配置或凭据。Xray 管理接口位于 `/api/v1/xray`，Agent 更新接口为 `/api/v1/agent/update`，均要求鉴权。请求体上限为 4 MiB。
 
 | 接口 | 用途 |
 | --- | --- |
-| `POST /install` | 下载并切换到指定官方版本，默认 v26.10.21 |
+| `POST /install` | 下载并切换到指定官方版本；省略版本时使用 `config/xray-version` 中的默认值 |
 | `GET /versions` | 列出本地版本、活动标记、架构和失败信息 |
 | `DELETE /versions/{version}` | 删除非活动且未被未完成事务引用的版本 |
 | `GET /status` | 查询进程、版本、配置修订和待确认操作 |

@@ -109,6 +109,10 @@ pub trait ServiceControl: Send + Sync {
 pub struct Systemd;
 
 impl Systemd {
+    pub async fn restart_agent() -> Result<()> {
+        Self::checked(&["restart", "xray-agent.service"]).await
+    }
+
     async fn command(arguments: &[&str]) -> Result<std::process::Output> {
         if !cfg!(target_os = "linux") {
             return Err(Error::Unsupported(

@@ -3,7 +3,7 @@
 
 use crate::{
     app::App,
-    config::{BASELINE, atomic_write},
+    config::{atomic_write, default_xray_version},
     error::{Error, Result},
     store::{Operation, now},
 };
@@ -405,7 +405,8 @@ impl App {
             ));
         }
         self.store.ensure_consistent()?;
-        let version = version.as_deref().unwrap_or(BASELINE);
+        let version = version.unwrap_or_else(default_xray_version);
+        let version = version.as_str();
         validate_version(version)?;
         let previous = self.active_version()?;
         if previous.as_deref() == Some(version) {

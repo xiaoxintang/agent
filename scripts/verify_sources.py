@@ -41,6 +41,10 @@ def main():
         source,
     )
     assert len(entries) == source.count("endpoint!("), "unparsed endpoint declaration"
+    entries.extend(re.findall(
+        r'Endpoint\s*\{\s*verb:\s*"(\w+)"\s*,\s*path:\s*"([^"]+)"\s*,[^}]*?rpc:\s*(?:None|Some\("([^"]+)"\))',
+        source,
+    ))
     assert len({(verb, path) for verb, path, _ in entries}) == len(entries)
     covered = {method for _, _, method in entries if method}
     assert len(methods) == 26, f"unexpected upstream method count: {len(methods)}"

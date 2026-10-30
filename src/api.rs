@@ -36,6 +36,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
+    UpdateAgent,
     Install,
     Versions,
     DeleteVersion,
@@ -92,6 +93,16 @@ macro_rules! endpoint {
 
 // 路径、文档和管理 RPC 的关联只有这一处定义，新增接口必须同时经过覆盖校验。
 pub const ENDPOINTS: &[Endpoint] = &[
+    Endpoint {
+        verb: "post",
+        path: "/api/v1/agent/update",
+        summary: "Schedule an Agent update in an independent systemd service",
+        kind: Kind::UpdateAgent,
+        rpc: None,
+        request: Some("UpdateRequest"),
+        response: Some("UpdateAccepted"),
+        mutating: true,
+    },
     endpoint!(
         "post",
         "/install",
@@ -477,8 +488,7 @@ pub const ENDPOINTS: &[Endpoint] = &[
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InstallRequest {
-    /// Official release tag, default v26.10.21.
-    #[schema(example = "v26.10.21")]
+    /// Official release tag; omitted values use the project's configured default Xray version.
     pub version: Option<String>,
 }
 
@@ -641,6 +651,10 @@ async fn execute(
     body: Value,
 ) -> Result<Response> {
     let value = match endpoint.kind {
+        Kind::UpdateAgent => {
+            let accepted = crate::update::schedule(deserialize(body)?).await?;
+            return Ok((StatusCode::ACCEPTED, Json(accepted)).into_response());
+        }
         Kind::Install => app.install(deserialize::<InstallRequest>(body)?.version).await?,
         Kind::Versions => serde_json::to_value(app.list_versions()?)?,
         Kind::DeleteVersion => app.delete_version(&required(&parameters,"version")?).await?,
@@ -718,6 +732,8 @@ async fn execute(
 #[openapi(components(schemas(
     ErrorBody,
     InstallRequest,
+    crate::update::UpdateRequest,
+    crate::update::UpdateAccepted,
     OverrideRequest,
     RulesRequest,
     InboundOperation,
@@ -845,6 +861,36 @@ mod tests {
             .filter_map(|endpoint| endpoint.rpc.map(str::to_owned))
             .collect();
         assert_eq!(covered, grpc::methods().into_iter().collect());
+    }
+
+    #[tokio::test]
+    async fn agent_update_requires_authentication_and_rejects_invalid_requests() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (app, _) =
+            crate::testsupport::fixture(temporary.path(), crate::testsupport::Outcome::Success);
+        let router = router(app.clone());
+        for (authorized, body, expected) in [
+            (false, json!({}), StatusCode::UNAUTHORIZED),
+            (true, json!({"version":"v1;id"}), StatusCode::BAD_REQUEST),
+            (true, json!({"unexpected":true}), StatusCode::BAD_REQUEST),
+        ] {
+            let mut request = axum::http::Request::builder()
+                .method("POST")
+                .uri("/api/v1/agent/update");
+            if authorized {
+                request = request.header("Authorization", format!("Bearer {}", app.settings.token));
+            }
+            let response = router
+                .clone()
+                .oneshot(
+                    request
+                        .body(axum::body::Body::from(body.to_string()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), expected);
+        }
     }
 
     #[tokio::test]

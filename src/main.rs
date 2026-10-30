@@ -11,6 +11,7 @@ mod process;
 mod store;
 #[cfg(test)]
 mod testsupport;
+mod update;
 mod versions;
 
 use clap::{Parser, Subcommand};
@@ -42,6 +43,16 @@ enum Commands {
     Version,
     /// Initialize credentials and SQLite; print a new token only on first initialization.
     Init,
+    /// Print the current Bearer token from the initialized configuration.
+    Token,
+    /// Save and print a new Bearer token, then restart the Agent to apply it.
+    ResetToken,
+    /// Install the configured default Xray version if no managed version is active.
+    InstallXray,
+    /// Update the Agent from GitHub Releases, preserving credentials and Xray state.
+    Update(update::UpdateRequest),
+    /// Uninstall the Agent and managed Xray, deleting all configuration and state.
+    Uninstall,
     /// Run the HTTP management service.
     Serve,
     /// systemd ExecStartPre: publish the authoritative committed Xray JSON.
@@ -104,7 +115,45 @@ async fn run(cli: Cli) -> Result<()> {
         return Ok(());
     }
     require_linux_root()?;
+    if let Commands::Update(request) = cli.command {
+        return update::run(request).await;
+    }
+    if matches!(cli.command, Commands::Uninstall) {
+        let _lock = update::lock_update()?;
+        let status = tokio::process::Command::new("/bin/sh")
+            .args([
+                "-c",
+                include_str!("../deploy/uninstall.sh"),
+                "agent-uninstall",
+            ])
+            .stdin(std::process::Stdio::null())
+            .kill_on_drop(true)
+            .status()
+            .await?;
+        if !status.success() {
+            return Err(Error::Unavailable(format!(
+                "Uninstall failed ({status}); inspect the uninstaller output"
+            )));
+        }
+        return Ok(());
+    }
     let config_path = Path::new(config::DEFAULT_CONFIG);
+    match cli.command {
+        Commands::Token => {
+            println!("{}", config::load(config_path)?.token);
+            return Ok(());
+        }
+        Commands::ResetToken => {
+            println!("{}", config::reset_token(config_path)?);
+            process::Systemd::restart_agent().await.map_err(|error| {
+                Error::Unavailable(format!(
+                    "New token saved, but restarting the Agent failed: {error}. Retry with: sudo systemctl restart xray-agent.service"
+                ))
+            })?;
+            return Ok(());
+        }
+        _ => {}
+    }
     if matches!(cli.command, Commands::Init) {
         let token = config::initialize(config_path)?;
         let settings = config::load(config_path)?;
@@ -123,7 +172,7 @@ async fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Commands::PrepareXray => app.materialize(),
         Commands::RestoreXray => app.restore_after_start().await,
-        Commands::Serve => {
+        Commands::Serve | Commands::InstallXray => {
             let lock_path = app.paths.database.with_file_name("agent.lock");
             let lock = fs::OpenOptions::new()
                 .create(true)
@@ -135,6 +184,15 @@ async fn run(cli: Cli) -> Result<()> {
             // 文件锁约束多个 Agent 进程，App 内的异步锁约束单个进程内的并发操作。
             fs2::FileExt::try_lock_exclusive(&lock)
                 .map_err(|_| Error::Conflict("another agent instance is running".into()))?;
+            if matches!(cli.command, Commands::InstallXray) {
+                app.recover().await?;
+                if let Some(version) = app.active_version()? {
+                    println!("Xray {version} already installed; existing version preserved.");
+                } else {
+                    println!("{}", app.install(None).await?);
+                }
+                return Ok(());
+            }
             if let Err(error) = app.recover().await {
                 // 恢复失败仍启动 HTTP，管理端才能查询未完成事务和故障状态。
                 tracing::error!(error=%error,"startup recovery incomplete; inspect /status");
@@ -150,7 +208,15 @@ async fn run(cli: Cli) -> Result<()> {
             drop(lock);
             Ok(())
         }
-        Commands::Init | Commands::Openapi { .. } | Commands::Version => unreachable!(),
+        Commands::Init
+        | Commands::Token
+        | Commands::ResetToken
+        | Commands::Openapi { .. }
+        | Commands::Version
+        | Commands::Uninstall
+        | Commands::Update(_) => {
+            unreachable!()
+        }
     }
 }
 
@@ -163,6 +229,11 @@ mod cli_tests {
         for command in [
             "version",
             "init",
+            "token",
+            "reset-token",
+            "install-xray",
+            "update",
+            "uninstall",
             "serve",
             "prepare-xray",
             "restore-xray",
@@ -177,6 +248,18 @@ mod cli_tests {
         assert!(
             matches!(cli.command, Commands::Openapi { output: Some(path) } if path == PathBuf::from("openapi.json"))
         );
+    }
+
+    #[test]
+    fn update_accepts_a_target_version_without_shadowing_the_version_flag() {
+        let cli = Cli::try_parse_from(["agent", "update", "--target-version", "v0.1.2"]).unwrap();
+        assert!(
+            matches!(cli.command, Commands::Update(request) if request.version.as_deref() == Some("v0.1.2"))
+        );
+        let error = Cli::try_parse_from(["agent", "update", "--version"])
+            .err()
+            .unwrap();
+        assert_eq!(error.kind(), clap::error::ErrorKind::DisplayVersion);
     }
 
     #[test]

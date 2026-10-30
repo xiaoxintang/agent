@@ -4,14 +4,16 @@ set -eu
 
 repo=xiaoxintang/agent
 version=latest
+update=0
 
 usage() {
-    echo "Usage: sh install.sh [--version v0.1.0] [--repo OWNER/REPO]"
+    echo "Usage: sh install.sh [--version v0.1.0] [--repo OWNER/REPO] [--update]"
     echo "Download a verified GitHub Release and install the agent systemd service."
 }
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        --update) update=1; shift ;;
         --version|--repo)
             if [ "$#" -lt 2 ] || [ -z "$2" ]; then
                 echo "Missing value for $1" >&2
@@ -104,5 +106,9 @@ for file in agent deploy/install.sh deploy/xray-agent.service; do
     fi
 done
 # 实际系统写入复用安装包中的本地脚本，保持在线与离线部署行为一致。
-sh "$staging/package/deploy/install.sh" "$staging/package/agent"
+if [ "$update" -eq 1 ]; then
+    sh "$staging/package/deploy/install.sh" "$staging/package/agent" --update
+else
+    sh "$staging/package/deploy/install.sh" "$staging/package/agent"
+fi
 echo "Installed. Run agent -v to check the version, or agent --help for commands."

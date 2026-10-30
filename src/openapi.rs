@@ -203,6 +203,8 @@ pub fn document() -> utoipa::openapi::OpenApi {
     let schemas = document["components"]["schemas"]
         .as_object_mut()
         .expect("schema map");
+    schemas["InstallRequest"]["properties"]["version"]["default"] =
+        json!(crate::config::default_xray_version());
     for message in grpc::pool()
         .all_messages()
         .filter(|message| !message.is_map_entry())
@@ -260,7 +262,7 @@ pub fn document() -> utoipa::openapi::OpenApi {
             }
         });
         if let Some(input) = input {
-            operation["requestBody"] = json!({"required":endpoint.kind!=Kind::Install,"content":{"application/json":{"schema":input}}});
+            operation["requestBody"] = json!({"required":!matches!(endpoint.kind, Kind::Install | Kind::UpdateAgent),"content":{"application/json":{"schema":input}}});
         }
         // 配置变更附带提交修订号；纯 RPC 查询直接返回上游响应结构。
         let response=endpoint.response.map(reference).or_else(|| endpoint.rpc.map(|name| {
@@ -272,7 +274,11 @@ pub fn document() -> utoipa::openapi::OpenApi {
         } else {
             json!({"application/json":{"schema":response}})
         };
-        let mut responses = json!({"200":{"description":"Success","content":content}});
+        let mut responses = if endpoint.kind == Kind::UpdateAgent {
+            json!({"202":{"description":"Update accepted; inspect the systemd unit journal for the outcome","content":content}})
+        } else {
+            json!({"200":{"description":"Success","content":content}})
+        };
         for (status, description) in [
             ("400", "Invalid request"),
             ("401", "Missing or invalid Bearer token"),
@@ -332,6 +338,14 @@ mod tests {
         let parsed: utoipa::openapi::OpenApi = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(parsed).unwrap(), value);
         let schemas = &value["components"]["schemas"];
+        assert_eq!(
+            schemas["InstallRequest"]["properties"]["version"]["default"],
+            crate::config::default_xray_version()
+        );
+        let update = &value["paths"]["/api/v1/agent/update"]["post"];
+        assert!(update["responses"]["202"].is_object());
+        assert!(update["responses"]["200"].is_null());
+        assert_eq!(update["requestBody"]["required"], false);
         assert_eq!(
             schemas["Operation"]["properties"]["details"]["type"],
             "object"

@@ -73,6 +73,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_*.py'
           sh -n install.sh
           sh -n deploy/install.sh
+          sh -n deploy/uninstall.sh
           sh -n scripts/package.sh
       - name: Test
         run: cargo test --locked --target "$RUST_TARGET"

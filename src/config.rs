@@ -15,6 +15,11 @@ use std::{
 pub const BASELINE: &str = "v26.10.21";
 pub const DEFAULT_CONFIG: &str = "/etc/xray-agent/agent.toml";
 
+// 默认安装版本由项目配置维护，随二进制发布；兼容性基准独立保留。
+pub fn default_xray_version() -> String {
+    format!("v{}", include_str!("../config/xray-version").trim())
+}
+
 // Token 只用于 HTTP 鉴权；gRPC 地址必须与 Xray 配置中的本机监听地址一致。
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -133,6 +138,24 @@ pub fn load(path: &Path) -> Result<Settings> {
     Ok(settings)
 }
 
+fn generate_token() -> Result<String> {
+    // 凭据来自系统安全随机源，不能使用普通伪随机数替代。
+    let mut random = [0u8; 32];
+    rand::rngs::OsRng
+        .try_fill_bytes(&mut random)
+        .map_err(|error| Error::Internal(format!("OS random source failed: {error}")))?;
+    Ok(URL_SAFE_NO_PAD.encode(random))
+}
+
+pub fn reset_token(path: &Path) -> Result<String> {
+    let mut settings = load(path)?;
+    settings.token = generate_token()?;
+    let contents =
+        toml::to_string_pretty(&settings).map_err(|error| Error::Internal(error.to_string()))?;
+    atomic_write(path, contents.as_bytes())?;
+    Ok(settings.token)
+}
+
 /// Returns the new token only on first initialization. Existing credentials are never printed.
 pub fn initialize(path: &Path) -> Result<Option<String>> {
     if path.exists() {
@@ -144,12 +167,7 @@ pub fn initialize(path: &Path) -> Result<Option<String>> {
         .ok_or_else(|| Error::BadRequest("config needs a parent directory".into()))?;
     fs::create_dir_all(parent)?;
     private_directory(parent)?;
-    // 凭据来自系统安全随机源，不能使用普通伪随机数替代。
-    let mut random = [0u8; 32];
-    rand::rngs::OsRng
-        .try_fill_bytes(&mut random)
-        .map_err(|error| Error::Internal(format!("OS random source failed: {error}")))?;
-    let token = URL_SAFE_NO_PAD.encode(random);
+    let token = generate_token()?;
     let settings = Settings {
         listen: "0.0.0.0:8080".parse().unwrap(),
         grpc_listen: "127.0.0.1:10085".parse().unwrap(),
@@ -190,6 +208,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn configured_default_xray_version_is_an_official_tag() {
+        let configured = include_str!("../config/xray-version").trim();
+        assert!(!configured.starts_with('v'));
+        let version = default_xray_version();
+        assert_eq!(version.strip_prefix('v'), Some(configured));
+        crate::versions::validate_version(&version).unwrap();
+    }
+
+    #[test]
     fn initialization_preserves_credentials() {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("agent/agent.toml");
@@ -205,5 +232,47 @@ mod tests {
                 0o600
             );
         }
+    }
+
+    #[test]
+    fn resetting_token_preserves_addresses_and_private_permissions() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("agent/agent.toml");
+        let original = Settings {
+            listen: "127.0.0.1:9090".parse().unwrap(),
+            grpc_listen: "127.0.0.1:10086".parse().unwrap(),
+            token: "a".repeat(43),
+        };
+        atomic_write(&path, toml::to_string_pretty(&original).unwrap().as_bytes()).unwrap();
+
+        let token = reset_token(&path).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+        let saved = load(&path).unwrap();
+        assert_ne!(token, original.token);
+        assert_eq!(URL_SAFE_NO_PAD.decode(&token).unwrap().len(), 32);
+        assert_eq!(saved.token, token);
+        assert_eq!(saved.listen, original.listen);
+        assert_eq!(saved.grpc_listen, original.grpc_listen);
+        assert!(initialize(&path).unwrap().is_none());
+        assert_eq!(load(&path).unwrap().token, token);
+    }
+
+    #[test]
+    fn resetting_token_requires_an_existing_valid_config() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("agent.toml");
+        assert!(reset_token(&path).is_err());
+        assert!(!path.exists());
+        let invalid = "token = 'short'\n";
+        fs::write(&path, invalid).unwrap();
+        assert!(reset_token(&path).is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), invalid);
     }
 }

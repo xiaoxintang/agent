@@ -64,7 +64,7 @@ else:
         )
         return result, self.project / f"dist/agent-{TAG}-linux-{arch}.tar.gz"
 
-    def bootstrap(self, assets, *arguments, machine="x86_64"):
+    def bootstrap(self, assets, *arguments, machine="x86_64", embedded=False):
         # 下载、架构识别和部署入口都由 PATH 中的替身接管，不访问 GitHub 或写系统目录。
         mocks = self.directory / "mocks"
         mocks.mkdir(exist_ok=True)
@@ -99,21 +99,24 @@ for line in pathlib.Path(sys.argv[2]).read_text().splitlines():
 """)
         # Only intercept the final deployment invocation. The bootstrap itself runs via /bin/sh.
         executable(mocks / "sh", """
-import os, pathlib, sys
+import json, os, pathlib, sys
 script=pathlib.Path(sys.argv[1])
 binary=pathlib.Path(sys.argv[2])
 assert script.name=='install.sh' and script.parent.name=='deploy'
 assert binary.is_file() and not binary.is_symlink()
 assert (script.parent/'xray-agent.service').read_text().startswith('# Managed by xray-agent')
-pathlib.Path(os.environ['MOCK_MARKER']).write_text('deployed')
+pathlib.Path(os.environ['MOCK_MARKER']).write_text(json.dumps(sys.argv[3:]))
 """)
         environment = dict(
             os.environ, PATH=str(mocks) + os.pathsep + os.environ["PATH"],
             MOCK_ASSETS=str(assets), MOCK_TAG=TAG, MOCK_MACHINE=machine,
             MOCK_MARKER=str(marker), MOCK_LOG=str(log),
         )
+        command = ["/bin/sh", str(ROOT / "install.sh")]
+        if embedded:
+            command = ["/bin/sh", "-c", (ROOT / "install.sh").read_text(), "agent-update"]
         result = subprocess.run(
-            ["/bin/sh", str(ROOT / "install.sh"), *arguments],
+            [*command, *arguments],
             env=environment, capture_output=True, text=True, timeout=15,
         )
         return result, marker, log
@@ -125,6 +128,95 @@ pathlib.Path(os.environ['MOCK_MARKER']).write_text('deployed')
         checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
         (archive.parent / "SHA256SUMS").write_text(f"{checksum}  {archive.name}\n")
         return archive
+
+    def deploy(self, xray_failure=False, update=False, installed=False):
+        # 仅替换系统路径；实际执行部署脚本，所有写入均限制在临时目录。
+        mocks = self.directory / "mocks"
+        mocks.mkdir()
+        log = self.directory / "commands"
+        executable(mocks / "id", "print('0')\n")
+        executable(mocks / "uname", "print('Linux')\n")
+        executable(mocks / "systemctl", """
+import os, sys
+with open(os.environ['MOCK_LOG'], 'a') as log:
+    log.write('systemctl ' + ' '.join(sys.argv[1:]) + '\\n')
+""")
+        binary = self.directory / "agent"
+        executable(binary, """
+import os, sys
+with open(os.environ['MOCK_LOG'], 'a') as log:
+    log.write('agent ' + ' '.join(sys.argv[1:]) + '\\n')
+if sys.argv[1:] == ['install-xray'] and os.environ['MOCK_XRAY_FAILURE'] == '1':
+    raise SystemExit(1)
+""")
+        script = (ROOT / "deploy/install.sh").read_text()
+        for path in ["/usr/local/bin", "/etc/systemd/system", "/run/systemd/system"]:
+            destination = self.directory / path.lstrip("/")
+            destination.mkdir(parents=True)
+            script = script.replace(path, str(destination))
+        installer = self.project / "deploy/install.sh"
+        installer.write_text(script)
+        installed_binary = self.directory / "usr/local/bin/agent"
+        if installed:
+            executable(installed_binary, "raise SystemExit(0)\n")
+        environment = dict(
+            os.environ, PATH=str(mocks) + os.pathsep + os.environ["PATH"],
+            MOCK_LOG=str(log), MOCK_XRAY_FAILURE="1" if xray_failure else "0",
+        )
+        result = subprocess.run(
+            ["/bin/sh", str(installer), str(binary), *(["--update"] if update else [])], env=environment,
+            capture_output=True, text=True, timeout=15,
+        )
+        return result, log.read_text().splitlines() if log.exists() else []
+
+    def test_deployment_installs_default_xray_before_starting_agent(self):
+        result, commands = self.deploy()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(commands, [
+            "agent init", "systemctl daemon-reload",
+            "systemctl enable xray-agent.service", "systemctl stop xray-agent.service",
+            "agent install-xray", "systemctl start xray-agent.service",
+        ])
+
+    def test_xray_install_failure_still_starts_management_and_reports_failure(self):
+        result, commands = self.deploy(xray_failure=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(commands[-2:], ["agent install-xray", "systemctl start xray-agent.service"])
+        self.assertIn("Default Xray installation failed", result.stderr)
+
+    def test_agent_update_restarts_agent_without_installing_xray(self):
+        result, commands = self.deploy(update=True, xray_failure=True, installed=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("agent install-xray", commands)
+        self.assertEqual(commands[-2:], ["systemctl stop xray-agent.service", "systemctl start xray-agent.service"])
+
+    def test_update_requires_an_existing_agent(self):
+        result, commands = self.deploy(update=True, installed=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(commands, [])
+        self.assertIn("Agent is not installed", result.stderr)
+        self.assertFalse((self.directory / "usr/local/bin/agent").exists())
+
+    def test_embedded_updater_downloads_latest_and_forwards_update_mode(self):
+        archive = self.release()
+        result, marker, log = self.bootstrap(archive.parent, "--update", embedded=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(json.loads(marker.read_text()), ["--update"])
+        self.assertTrue(any(url.endswith('/releases/latest') for url in log.read_text().splitlines()))
+
+    def test_embedded_updater_uses_the_requested_release(self):
+        archive = self.release()
+        result, marker, log = self.bootstrap(archive.parent, "--update", "--version", TAG, embedded=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(json.loads(marker.read_text()), ["--update"])
+        self.assertTrue(all(f'/releases/download/{TAG}/' in url for url in log.read_text().splitlines()))
+
+    def test_embedded_update_checksum_failure_does_not_deploy(self):
+        archive = self.release()
+        (archive.parent / "SHA256SUMS").write_text(f"{'0' * 64}  {archive.name}\n")
+        result, marker, _ = self.bootstrap(archive.parent, "--update", embedded=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(marker.exists())
 
     def test_archive_contains_executable_docs_and_units(self):
         result, archive = self.package()
