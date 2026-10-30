@@ -1,4 +1,4 @@
-use super::native_users;
+use super::{effects::decode, native_users};
 use crate::{
     error::Result,
     web::{Task, Web},

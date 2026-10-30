@@ -115,7 +115,8 @@ def generate(source_root):
         if go_type in aliases and go_type not in stack:
             return shape(aliases[go_type], stack + (go_type,))
         if go_type in ('json.RawMessage', 'interface{}', 'any'):
-            return {'description': 'Polymorphic native JSON; use the visual field tree.'}
+            # utoipa requires an explicit type; keep every JSON value type valid.
+            return {'type': ['object', 'array', 'string', 'number', 'boolean', 'null'], 'description': 'Polymorphic native JSON; use the visual field tree.'}
         unknown.add(go_type)
         return {'description': 'Native Go value: ' + go_type}
     for name, definition in types.items():

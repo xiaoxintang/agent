@@ -9,7 +9,7 @@ pub fn native_users(inbound: &Value) -> Vec<&Value> {
         .map(|a| a.iter().collect())
         .unwrap_or_default()
 }
-fn decode(s: &str) -> String {
+pub(super) fn decode(s: &str) -> String {
     fn digit(byte: u8) -> Option<u8> {
         match byte {
             b'0'..=b'9' => Some(byte - b'0'),

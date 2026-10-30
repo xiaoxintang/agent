@@ -1,5 +1,5 @@
 use super::*;
-use crate::web::{Effect, Invoke};
+use crate::web::{Effect, Invoke, segment};
 use rusqlite::params;
 
 impl Db {
@@ -84,7 +84,7 @@ impl Db {
     }
 
     pub fn assignment_request(a: &Assignment) -> Invoke {
-        let tag = super::segment(&a.inbound_tag);
+        let tag = segment(&a.inbound_tag);
         let (method, path, body) = if a.desired_present {
             (
                 "POST",
@@ -96,7 +96,7 @@ impl Db {
                 "DELETE",
                 format!(
                     "/api/v1/xray/inbounds/{tag}/users/{}",
-                    super::segment(a.native_user["email"].as_str().unwrap_or_default())
+                    segment(a.native_user["email"].as_str().unwrap_or_default())
                 ),
                 Value::Null,
             )

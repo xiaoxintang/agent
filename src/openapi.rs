@@ -339,6 +339,22 @@ mod tests {
     }
 
     #[test]
+    fn native_components_support_json_roundtrip() {
+        let mut schemas = Map::new();
+        native_schemas(&mut schemas);
+        for (name, schema) in schemas {
+            let parsed = serde_json::from_value::<
+                utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+            >(schema.clone())
+            .unwrap_or_else(|error| panic!("invalid native component {name}: {error}"));
+            let value = serde_json::to_value(parsed).unwrap();
+            let reparsed: utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> =
+                serde_json::from_value(value.clone()).unwrap();
+            assert_eq!(serde_json::to_value(reparsed).unwrap(), value, "{name}");
+        }
+    }
+
+    #[test]
     fn generated_document_supports_roundtrip_and_preserves_composite_schemas() {
         let value = serde_json::to_value(document()).unwrap();
         let parsed: utoipa::openapi::OpenApi = serde_json::from_value(value.clone()).unwrap();
