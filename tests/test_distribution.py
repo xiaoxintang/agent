@@ -148,7 +148,7 @@ pathlib.Path(os.environ['MOCK_MARKER']).write_text(json.dumps(sys.argv[3:]))
                 with (archive.parent/'SHA256SUMS').open('a') as sums:sums.write(f'{hashlib.sha256(asset.read_bytes()).hexdigest()}  {asset.name}\n')
         return archive
 
-    def deploy(self, xray_failure=False, update=False, installed=False, extra=(), health_failure=False, installed_web=False):
+    def deploy(self, xray_failure=False, update=False, installed=False, extra=(), health_failure=False, installed_web=False, installer=None):
         mocks = self.directory / "mocks"
         mocks.mkdir()
         log = self.directory / "commands"
@@ -201,8 +201,8 @@ else:raise SystemExit(subprocess.call(['/bin/mv',*sys.argv[1:]]))
             frontend.mkdir();(frontend/'index.html').write_text('new frontend');(frontend/'version.json').write_text(json.dumps({'version':VERSION}))
             backend=self.directory/'agent-web';executable(backend,f"print('agent-web {VERSION}')\n")
             extra=(*extra,'--web','yes','--web-backend',str(backend),'--web-frontend',str(frontend))
-        script = re.sub(r"/(?:etc|usr/local|var|opt|run)/", lambda m: str(root)+m.group(), (ROOT/"deploy/install.sh").read_text())
-        installer = self.project / "deploy/install.sh"
+        script = re.sub(r"/(?:etc|usr/local|var|opt|run)/", lambda m: str(root)+m.group(), (installer or ROOT/"deploy/install.sh").read_text())
+        installer = installer or self.project / "deploy/install.sh"
         installer.write_text(script)
         installed_binary = root / "usr/local/bin/agent"
         if installed:
@@ -254,6 +254,27 @@ else:raise SystemExit(subprocess.call(['/bin/mv',*sys.argv[1:]]))
         self.assertIn("Agent is not installed", result.stderr)
         self.assertFalse((self.directory / "root/usr/local/bin/agent").exists())
 
+    def test_packaged_installer_supports_legacy_updater_extraction(self):
+        result, archive = self.package()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        legacy = self.directory / "legacy"
+        legacy.mkdir()
+        stem = f"agent-{TAG}-linux-amd64"
+        subprocess.run([
+            "tar", "-xzf", str(archive), "-C", str(legacy), "--strip-components=1",
+            f"{stem}/agent", f"{stem}/deploy/install.sh", f"{stem}/deploy/xray-agent.service",
+        ], check=True)
+        self.assertFalse((legacy / "deploy/options.sh").exists())
+        result, commands = self.deploy(
+            update=True, installed=True, installer=legacy / "deploy/install.sh",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("agent install-xray", commands)
+        self.assertEqual(commands[-1], "agent install-health")
+        root = self.directory / "root"
+        self.assertEqual((root / "etc/xray-agent/preserved").read_text(), "old token")
+        self.assertEqual((root / "var/lib/xray-agent/state.db").read_bytes(), b"old database")
+
     def test_embedded_updater_downloads_latest_and_forwards_update_mode(self):
         archive = self.release()
         result, marker, log = self.bootstrap(archive.parent, "--update", embedded=True)
@@ -281,7 +302,7 @@ else:raise SystemExit(subprocess.call(['/bin/mv',*sys.argv[1:]]))
         stem = f"agent-{TAG}-linux-amd64"
         with tarfile.open(archive) as package:
             self.assertEqual(package.getmember(f"{stem}/agent").mode & 0o777, 0o755)
-            for name in ["deploy/install.sh", "deploy/xray-agent.service", "deploy/xray.service", "licenses/Xray-core.LICENSE", "README.md"]:
+            for name in ["deploy/install.sh", "deploy/options.sh", "deploy/xray-agent.service", "deploy/xray-web.service", "deploy/xray.service", "licenses/Xray-core.LICENSE", "README.md"]:
                 self.assertTrue(package.getmember(f"{stem}/{name}").isfile())
             self.assertEqual(json.load(package.extractfile(f"{stem}/openapi.json"))["openapi"], "3.1.0")
 

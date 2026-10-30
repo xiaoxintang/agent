@@ -159,6 +159,12 @@ sudo agent update --target-version v0.1.2
 
 `--target-version` 指定更新目标；`--version` 仍用于查询当前 Agent 版本。命令等待更新结束，失败时返回非零退出码。更新复用安装器的架构识别和 SHA-256 校验，通过后替换 Agent 并重启 `xray-agent.service`，保留 Token、SQLite、systemd drop-in 及 Xray 版本、配置和运行状态。更新模式不安装缺失的 Xray。
 
+旧版（如 v0.1.2）的内嵌更新器只解压固定文件，更新到 v0.1.3/v0.1.4 时可能提示找不到 `deploy/options.sh`。可直接运行目标 Release 的安装脚本，绕过旧更新器并保留现有配置：
+
+```sh
+curl -fsSL https://github.com/xiaoxintang/agent/releases/download/v0.1.4/install.sh | sudo sh -s -- --update --version v0.1.4 --non-interactive
+```
+
 HTTP 使用相同 Bearer Token，向 `POST /api/v1/agent/update` 提交；省略请求体或传 `{}` 更新到最新稳定版：
 
 ```sh

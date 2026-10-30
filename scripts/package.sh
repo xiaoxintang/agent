@@ -36,6 +36,13 @@ package="$staging/$name"
 mkdir -p "$package/deploy" "$package/licenses" "$repo_dir/dist"
 install -m 0755 "$binary" "$package/agent"
 install -m 0755 "$repo_dir/deploy/install.sh" "$package/deploy/install.sh"
+# 旧版更新器只解压安装器和 Agent unit，发行包安装器需内嵌辅助函数。
+python3 - "$package/deploy/install.sh" "$repo_dir/deploy/options.sh" <<'PY'
+import sys
+from pathlib import Path
+installer, options = map(Path, sys.argv[1:])
+installer.write_text(installer.read_text().replace('. "$script_dir/options.sh"', options.read_text()))
+PY
 install -m 0644 "$repo_dir/deploy/options.sh" "$package/deploy/options.sh"
 install -m 0644 "$repo_dir/deploy/xray-web.service" "$package/deploy/xray-web.service"
 install -m 0644 "$repo_dir/deploy/xray-agent.service" "$package/deploy/xray-agent.service"
