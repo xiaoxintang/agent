@@ -126,24 +126,25 @@ async fn issue(domain: &str, directory: &Path, challenge: &Challenge) -> Result<
     let account = account(directory).await?;
     let identifiers = [Identifier::Dns(domain.to_owned())];
     let mut order = account.new_order(&NewOrder::new(&identifiers)).await?;
-    let mut authorizations = order.authorizations();
-    while let Some(result) = authorizations.next().await {
-        let mut authorization = result?;
-        match authorization.status {
-            AuthorizationStatus::Valid => continue,
-            AuthorizationStatus::Pending => (),
-            _ => return Err("ACME authorization is not pending".into()),
+    {
+        let mut authorizations = order.authorizations();
+        while let Some(result) = authorizations.next().await {
+            let mut authorization = result?;
+            match authorization.status {
+                AuthorizationStatus::Valid => continue,
+                AuthorizationStatus::Pending => (),
+                _ => return Err("ACME authorization is not pending".into()),
+            }
+            let mut http = authorization
+                .challenge(ChallengeType::Http01)
+                .ok_or("ACME HTTP-01 challenge unavailable")?;
+            *challenge.write().await = Some((
+                http.token.clone(),
+                http.key_authorization().as_str().to_owned(),
+            ));
+            http.set_ready().await?;
         }
-        let mut http = authorization
-            .challenge(ChallengeType::Http01)
-            .ok_or("ACME HTTP-01 challenge unavailable")?;
-        *challenge.write().await = Some((
-            http.token.clone(),
-            http.key_authorization().as_str().to_owned(),
-        ));
-        http.set_ready().await?;
     }
-    drop(authorizations);
     let policy = RetryPolicy::default().timeout(Duration::from_secs(120));
     let status = order.poll_ready(&policy).await;
     *challenge.write().await = None;

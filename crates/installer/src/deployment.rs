@@ -1759,11 +1759,13 @@ mod tests {
 
     #[test]
     fn acme_requires_matching_domain_and_reserves_http_challenge_port() {
-        let mut settings = Settings::default();
-        settings.local_http = false;
-        settings.server_bind = "0.0.0.0:8443".into();
-        settings.server_origin = "https://panel.example.com:8443".into();
-        settings.acme_domain = Some("panel.example.com".into());
+        let mut settings = Settings {
+            local_http: false,
+            server_bind: "0.0.0.0:8443".into(),
+            server_origin: "https://panel.example.com:8443".into(),
+            acme_domain: Some("panel.example.com".into()),
+            ..Settings::default()
+        };
         assert!(validate(&settings, Component::Server).is_ok());
         assert!(server_unit(&settings).contains("AmbientCapabilities=CAP_NET_BIND_SERVICE"));
         assert!(!server_unit(&settings).contains("LoadCredential="));
