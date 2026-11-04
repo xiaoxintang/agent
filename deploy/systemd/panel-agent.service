@@ -1,0 +1,35 @@
+[Unit]
+Description=Panel Agent
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/var/lib/panel/agent/agent.sqlite3
+
+[Service]
+Type=simple
+User=panel-agent
+Group=panel-agent
+StateDirectory=panel/agent
+StateDirectoryMode=0700
+ExecStart=/usr/local/bin/panel-agent --data-dir /var/lib/panel/agent run
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

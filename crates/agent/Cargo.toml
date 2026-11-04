@@ -1,0 +1,35 @@
+[package]
+name = "panel-agent"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+clap.workspace = true
+panel-common = { workspace = true, features = ["xray-stats"] }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+uuid.workspace = true
+sha2.workspace = true
+hex.workspace = true
+futures-util.workspace = true
+tokio-tungstenite.workspace = true
+rustls.workspace = true
+url = "=2.5.8"
+webpki-roots = "1.0"
+rpassword = "=7.5.4"
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "=1.1.6", features = ["fs", "process", "thread"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "=6.2.1", default-features = false, features = ["tokio", "proxy"] }
+
+[dev-dependencies]
+tempfile = "=3.27.0"
+
+[lints]
+workspace = true

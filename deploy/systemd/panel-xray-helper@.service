@@ -1,0 +1,22 @@
+[Unit]
+Description=Panel Xray one-request helper
+
+[Service]
+Type=exec
+ExecStart=/usr/local/bin/panel-installer xray-helper
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+User=root
+UMask=0077
+LimitCORE=0
+RuntimeMaxSec=305
+TimeoutStopSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true

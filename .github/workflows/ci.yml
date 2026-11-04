@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22.23.2
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+        with:
+          package_json_file: web/package.json
+      - name: Install pinned Rust toolchain
+        run: rustup show active-toolchain
+      - name: Format, lint, contracts, tests, build and standalone smoke
+        run: sh scripts/check.sh
+      - name: Real Linux metrics, systemd allowlist and privilege boundary
+        run: python3 scripts/verify-linux.py
+      - name: Real installer, TTY, rollback, privilege boundary and bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          panel_ci_dir=$(mktemp -d /tmp/panel-ci.XXXXXXXX)
+          panel_ci_arch=$(uname -m)
+          panel_ci_version=$(target/release/panel-installer --version | cut -d ' ' -f 2)
+          mkdir "$panel_ci_dir/failure-binaries"
+          cc -O2 crates/installer/tests/fixtures/failing-release.c -o "$panel_ci_dir/failure-binaries/panel-server"
+          cp "$panel_ci_dir/failure-binaries/panel-server" "$panel_ci_dir/failure-binaries/panel-agent"
+          cp "$panel_ci_dir/failure-binaries/panel-server" "$panel_ci_dir/failure-binaries/panel-installer"
+          python3 scripts/package.py --binaries target/release --output "$panel_ci_dir/bundle" --arch "$panel_ci_arch" --version "$panel_ci_version"
+          python3 scripts/package.py --binaries "$panel_ci_dir/failure-binaries" --output "$panel_ci_dir/failure" --arch "$panel_ci_arch" --version 0.1.1
+          panel_ci_hash=$(sha256sum "$panel_ci_dir/bundle/bundle.json" | cut -d ' ' -f 1)
+          panel_ci_failure_hash=$(sha256sum "$panel_ci_dir/failure/bundle.json" | cut -d ' ' -f 1)
+          sudo chown -R root:root "$panel_ci_dir"
+          sudo chmod 700 "$panel_ci_dir"
+          sudo python3 scripts/verify-install.py --bundle "$panel_ci_dir/bundle" --sha256 "$panel_ci_hash" --failure-bundle "$panel_ci_dir/failure" --failure-sha256 "$panel_ci_failure_hash" --wizard --backup-restore
+          sudo python3 scripts/verify-bootstrap.py --bundle "$panel_ci_dir/bundle" --bootstrap "$PWD/scripts/bootstrap.sh" --owned-vm

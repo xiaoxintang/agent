@@ -1,0 +1,39 @@
+[package]
+name = "panel-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum.workspace = true
+panel-common.workspace = true
+rust-embed.workspace = true
+tokio.workspace = true
+mime_guess = "2.0"
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+argon2 = "=0.6.0"
+sha2.workspace = true
+hex.workspace = true
+subtle = "=2.6.1"
+uuid.workspace = true
+rpassword = "=7.5.4"
+x25519-dalek = { version = "=3.0.0", features = ["static_secrets"] }
+getrandom = "=0.4.3"
+base64 = "=0.22.1"
+futures-util.workspace = true
+rustls.workspace = true
+axum-server = { version = "=0.8.0", features = ["tls-rustls-no-provider"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+tempfile = "=3.27.0"
+panel-agent = { path = "../agent" }
+tokio-tungstenite.workspace = true
+rcgen = "=0.14.10"
+
+[lints]
+workspace = true

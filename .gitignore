@@ -1,0 +1,10 @@
+.idea
+.vscode
+/target/
+/data/
+/agent-data/
+/web/node_modules/
+/web/dist/
+/crates/server/web-dist/
+*.tsbuildinfo
+__pycache__/

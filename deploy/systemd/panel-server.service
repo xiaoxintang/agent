@@ -1,0 +1,38 @@
+# Managed by panel-installer; HTTPS template rendered for the chosen data path/port.
+[Unit]
+Description=Panel Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=panel-server
+Group=panel-server
+ExecStart=/usr/local/bin/panel-server
+EnvironmentFile=/etc/panel/server.env
+LoadCredential=tls-cert.pem:/etc/panel/server-cert.pem
+LoadCredential=tls-key.pem:/etc/panel/server-key.pem
+RuntimeDirectory=panel-server
+RuntimeDirectoryMode=0700
+ExecStartPre=/usr/bin/install -m 0600 %d/tls-key.pem /run/panel-server/tls-key.pem
+Environment=PANEL_TLS_CERT=%d/tls-cert.pem
+Environment=PANEL_TLS_KEY=/run/panel-server/tls-key.pem
+UMask=0077
+LimitCORE=0
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/panel/server
+
+[Install]
+WantedBy=multi-user.target
