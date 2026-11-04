@@ -37,7 +37,7 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
     if args.component.server() {
         settings.local_http = Confirm::new()
             .with_prompt(
-                "Use local-only development HTTP? Public access requires your TLS certificate",
+                "Use local-only development HTTP? Public HTTPS uses automatic certificates",
             )
             .default(false)
             .interact()?;
@@ -52,28 +52,49 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
                 .into(),
             )
             .interact_text()?;
+        let server_port = settings.server_bind.parse::<std::net::SocketAddr>()?.port();
+        let default_origin = if settings.local_http {
+            if server_port == 80 {
+                "http://127.0.0.1".into()
+            } else {
+                format!("http://127.0.0.1:{server_port}")
+            }
+        } else if server_port == 443 {
+            "https://panel.example".into()
+        } else {
+            format!("https://panel.example:{server_port}")
+        };
         settings.server_origin = Prompt::new()
             .with_prompt("Exact browser origin (no trailing slash)")
-            .default(
-                if settings.local_http {
-                    "http://127.0.0.1:8080"
-                } else {
-                    "https://panel.example:8443"
-                }
-                .into(),
-            )
+            .default(default_origin)
             .interact_text()?;
         if !settings.local_http {
-            settings.tls_cert = Some(PathBuf::from(
-                Prompt::<String>::new()
-                    .with_prompt("TLS certificate PEM path")
-                    .interact_text()?,
-            ));
-            settings.tls_key = Some(PathBuf::from(
-                Prompt::<String>::new()
-                    .with_prompt("TLS private key PEM path")
-                    .interact_text()?,
-            ));
+            if Confirm::new()
+                .with_prompt("Automatically obtain and renew a Let's Encrypt certificate?")
+                .default(true)
+                .interact()?
+            {
+                let origin = url::Url::parse(&settings.server_origin)?;
+                settings.acme_domain = Some(
+                    origin
+                        .host_str()
+                        .ok_or("HTTPS origin needs a domain")?
+                        .to_owned(),
+                );
+            } else {
+                settings.tls_cert = Some(
+                    Prompt::<String>::new()
+                        .with_prompt("TLS certificate PEM path")
+                        .interact_text()?
+                        .into(),
+                );
+                settings.tls_key = Some(
+                    Prompt::<String>::new()
+                        .with_prompt("TLS private key PEM path")
+                        .interact_text()?
+                        .into(),
+                );
+            }
         }
         if custom {
             settings.server_data = PathBuf::from(

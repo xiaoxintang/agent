@@ -7,29 +7,42 @@ pub fn data_directory() -> PathBuf {
 }
 
 pub fn secure_cookie() -> Result<bool, Box<dyn Error>> {
+    let public_http = public_http()?;
     match env::var("PANEL_DEV_HTTP") {
-        Ok(value) if value == "1" => Ok(false),
-        Err(env::VarError::NotPresent) => Ok(true),
-        _ => Err("PANEL_DEV_HTTP, if set, must be exactly 1 (loopback development only)".into()),
+        Ok(value) if value == "1" && !public_http => Ok(false),
+        Err(env::VarError::NotPresent) => Ok(!public_http),
+        _ => Err("PANEL_DEV_HTTP must be 1 and cannot be combined with PANEL_PUBLIC_HTTP".into()),
+    }
+}
+
+fn public_http() -> Result<bool, Box<dyn Error>> {
+    match env::var("PANEL_PUBLIC_HTTP") {
+        Ok(value) if value == "1" => Ok(true),
+        Err(env::VarError::NotPresent) => Ok(false),
+        _ => Err("PANEL_PUBLIC_HTTP, if set, must be exactly 1".into()),
     }
 }
 
 pub fn origin(address: SocketAddr) -> Result<String, Box<dyn Error>> {
     let value = match env::var("PANEL_ORIGIN") {
         Ok(value) => value,
-        Err(env::VarError::NotPresent) => format!("http://{address}"),
+        Err(env::VarError::NotPresent) if !public_http()? => format!("http://{address}"),
+        Err(env::VarError::NotPresent) => {
+            return Err("Public HTTP requires an explicit PANEL_ORIGIN".into());
+        }
         Err(error) => return Err(error.into()),
     };
-    validate_origin(&value)?;
+    validate_origin(&value, public_http()?)?;
     Ok(value)
 }
 
-fn validate_origin(value: &str) -> Result<(), Box<dyn Error>> {
+fn validate_origin(value: &str, public_http: bool) -> Result<(), Box<dyn Error>> {
     let uri: axum::http::Uri = value.parse()?;
     let host = uri.host().ok_or("PANEL_ORIGIN must contain a host")?;
     let ip: std::net::IpAddr = host.trim_matches(['[', ']']).parse()?;
     if uri.scheme_str() != Some("http")
-        || !ip.is_loopback()
+        || ip.is_unspecified()
+        || (!public_http && !ip.is_loopback())
         || uri
             .authority()
             .is_none_or(|authority| authority.as_str().contains('@'))
@@ -38,9 +51,7 @@ fn validate_origin(value: &str) -> Result<(), Box<dyn Error>> {
             .is_some_and(|path| path.as_str() != "/")
         || value.ends_with('/')
     {
-        return Err(
-            "PANEL_ORIGIN must be a loopback HTTP origin without path or trailing slash".into(),
-        );
+        return Err("PANEL_ORIGIN must be an HTTP IP origin without path or trailing slash".into());
     }
     Ok(())
 }
@@ -58,7 +69,7 @@ pub fn listen_address(tls: bool) -> Result<SocketAddr, Box<dyn Error>> {
     if tls {
         Ok(value.parse()?)
     } else {
-        validate_bind_address(&value)
+        validate_bind_address(&value, public_http()?)
     }
 }
 
@@ -111,9 +122,9 @@ pub fn tls_origin(address: SocketAddr) -> Result<String, Box<dyn Error>> {
     Ok(value)
 }
 
-fn validate_bind_address(value: &str) -> Result<SocketAddr, Box<dyn Error>> {
+fn validate_bind_address(value: &str, public_http: bool) -> Result<SocketAddr, Box<dyn Error>> {
     let address: SocketAddr = value.parse()?;
-    if !address.ip().is_loopback() {
+    if !public_http && !address.ip().is_loopback() {
         return Err("HTTP must bind to loopback; public access requires TLS".into());
     }
     Ok(address)
@@ -126,17 +137,19 @@ mod tests {
     #[test]
     fn http_bind_is_limited_to_loopback() {
         for value in ["127.0.0.1:8080", "[::1]:8080"] {
-            assert!(validate_bind_address(value).is_ok());
+            assert!(validate_bind_address(value, false).is_ok());
         }
         for value in ["0.0.0.0:8080", "[::]:8080", "192.168.1.2:8080", "invalid"] {
-            assert!(validate_bind_address(value).is_err());
+            assert!(validate_bind_address(value, false).is_err());
         }
+        assert!(validate_bind_address("0.0.0.0:8080", true).is_ok());
+        assert!(validate_bind_address("invalid", true).is_err());
     }
 
     #[test]
     fn origin_must_be_an_exact_loopback_origin() {
         for value in ["http://127.0.0.1:8080", "http://[::1]:5173"] {
-            assert!(validate_origin(value).is_ok(), "{value}");
+            assert!(validate_origin(value, false).is_ok(), "{value}");
         }
         for value in [
             "http://evil.example",
@@ -146,7 +159,10 @@ mod tests {
             "http://user@127.0.0.1:8080",
             "http://127.0.0.1:8080?query",
         ] {
-            assert!(validate_origin(value).is_err(), "{value}");
+            assert!(validate_origin(value, false).is_err(), "{value}");
         }
+        assert!(validate_origin("http://192.168.1.2:8080", true).is_ok());
+        assert!(validate_origin("http://0.0.0.0:8080", true).is_err());
+        assert!(validate_origin("http://example.com:8080", true).is_err());
     }
 }

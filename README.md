@@ -4,7 +4,7 @@
 
 ## 用户：验证并一键安装
 
-中央节点需要 Debian/Ubuntu、systemd ≥249、root 权限和自己的 TLS 证书。安装器没有默认密码；公网使用必须启用 HTTPS。每个被管理节点需要独立安装 Agent。
+中央节点需要 Debian/Ubuntu、systemd ≥249 和 root 权限。安装器没有默认密码；公网使用必须启用 HTTPS。每个被管理节点需要独立安装 Agent。
 
 下载并运行一键安装脚本：
 
@@ -13,11 +13,11 @@ curl -fsSL https://github.com/xiaoxintang/agent/releases/latest/download/bootstr
 sudo sh bootstrap.sh
 ```
 
-交互安装会询问 TLS 证书和私钥、浏览器访问地址、首个管理员密码、节点名称及是否安装 Xray。密码隐藏输入。安装器创建 Server 和 Agent 专用账号、systemd 服务与受限 helper；首次合并安装会创建本机节点并注册 Agent。它不会自动申请或续期 TLS 证书。
+交互安装会询问浏览器访问地址、首个管理员密码、节点名称及是否安装 Xray，默认自动申请并续期 Let's Encrypt 证书，也可使用现有证书。自动证书要求域名解析到服务器、公网 TCP 80 可达且未被占用；HTTPS 使用所配置的服务端口。密码隐藏输入。安装器创建 Server 和 Agent 专用账号、systemd 服务与受限 helper；首次合并安装会创建本机节点并注册 Agent。
 
 如需 Server 与节点分开部署，在中央机使用 `--component server`，在每个工作节点使用同一验证流程并添加 `--component agent`。向导会询问 WSS 地址和一次性注册 token；token 在面板的节点页面生成。每台机器使用独立身份库，禁止复制另一节点的 Agent 数据目录。
 
-非交互安装使用 root-owned、权限 0600 的配置文件保存 TLS 路径和密码。字段及示例见[安装与运维说明](docs/operations.md)。安装器也可单独运行：
+非交互安装使用 root-owned、权限 0600 的配置文件保存配置和密码。字段及示例见[安装与运维说明](docs/operations.md)。安装器也可单独运行：
 
 ```sh
 sudo panel-installer status

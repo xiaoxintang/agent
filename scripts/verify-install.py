@@ -101,6 +101,7 @@ def wizard_install(settings, cert, key, authority):
         ("Use local-only development HTTP?", "n"),
         ("Server bind IP:port", settings["server_bind"] + "\r"),
         ("Exact browser origin", settings["server_origin"] + "\r"),
+        ("Automatically obtain and renew", "n"),
         ("TLS certificate PEM path", str(cert) + "\r"),
         ("TLS private key PEM path", str(key) + "\r"),
         ("Server data path under /var/lib/panel", "\r"),

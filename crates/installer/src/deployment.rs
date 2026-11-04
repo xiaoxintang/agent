@@ -186,14 +186,31 @@ pub fn validate(settings: &Settings, component: Component) -> Result<()> {
                     .is_none_or(|ip| !ip.is_loopback())
                 || settings.tls_key.is_some()
                 || settings.tls_cert.is_some()
+                || settings.acme_domain.is_some()
             {
                 return Err("Plain HTTP must be explicitly local-only, without TLS paths".into());
             }
-        } else if origin.scheme() != "https"
-            || settings.tls_key.is_none()
-            || settings.tls_cert.is_none()
-        {
-            return Err("Public installation requires HTTPS and certificate/key".into());
+        } else {
+            let manual = settings.tls_key.is_some()
+                && settings.tls_cert.is_some()
+                && settings.acme_domain.is_none();
+            let automatic = settings.acme_domain.as_ref().is_some_and(|domain| {
+                matches!(origin.host(), Some(url::Host::Domain(host)) if host == domain.as_str())
+                    && domain.contains('.')
+                    && domain.bytes().all(|byte| {
+                        byte.is_ascii_lowercase()
+                            || byte.is_ascii_digit()
+                            || byte == b'-'
+                            || byte == b'.'
+                    })
+                    && bind.port() != 80
+                    && origin.port_or_known_default() == Some(bind.port())
+                    && settings.tls_key.is_none()
+                    && settings.tls_cert.is_none()
+            });
+            if origin.scheme() != "https" || !(manual || automatic) {
+                return Err("HTTPS requires either matching ACME domain or certificate/key; ACME reserves port 80".into());
+            }
         }
         if settings.admin_username.is_empty()
             || settings.admin_username.len() > 32
@@ -403,11 +420,11 @@ fn server_unit(settings: &Settings) -> String {
     if settings
         .server_bind
         .parse::<std::net::SocketAddr>()
-        .is_ok_and(|bind| bind.port() >= 1024)
+        .is_ok_and(|bind| bind.port() >= 1024 && settings.acme_domain.is_none())
     {
         unit = unit.replace("CAP_NET_BIND_SERVICE", "");
     }
-    if settings.local_http {
+    if settings.local_http || settings.acme_domain.is_some() {
         unit = unit
             .lines()
             .filter(|line| {
@@ -418,6 +435,9 @@ fn server_unit(settings: &Settings) -> String {
             .collect::<Vec<_>>()
             .join("\n")
             + "\n";
+    }
+    if settings.acme_domain.is_some() {
+        unit = unit.replace("RestartSec=5", "RestartSec=3600");
     }
     unit
 }
@@ -872,13 +892,25 @@ async fn health(state: &Manifest, component: Component) -> Result<()> {
         }
     }
     if component.server() {
-        let response = client(&state.settings)
-            .await?
-            .get(format!("{}/api/v1/health", state.settings.server_origin))
-            .send()
-            .await?;
-        if !response.status().is_success() {
-            return Err("Server HTTPS/HTTP health check failed".into());
+        let client = client(&state.settings).await?;
+        let deadline = tokio::time::Instant::now()
+            + Duration::from_secs(if state.settings.acme_domain.is_some() {
+                300
+            } else {
+                10
+            });
+        loop {
+            let response = client
+                .get(format!("{}/api/v1/health", state.settings.server_origin))
+                .send()
+                .await;
+            if response.is_ok_and(|response| response.status().is_success()) {
+                break;
+            }
+            if tokio::time::Instant::now() >= deadline || state.settings.acme_domain.is_none() {
+                return Err("Server HTTPS/HTTP health check failed; inspect the server journal and ACME DNS/port 80".into());
+            }
+            tokio::time::sleep(Duration::from_secs(2)).await;
         }
     }
     Ok(())
@@ -975,13 +1007,18 @@ async fn activate(
                 ""
             }
         );
+        let environment = if let Some(domain) = &saved.acme_domain {
+            format!("{environment}PANEL_ACME_DOMAIN={domain}\n")
+        } else {
+            environment
+        };
         write(
             state,
             "/etc/panel/server.env",
             environment.as_bytes(),
             0o600,
         )?;
-        if !saved.local_http {
+        if !saved.local_http && saved.acme_domain.is_none() {
             let cert = bundle::read(
                 saved.tls_cert.as_deref().ok_or("Missing TLS cert")?,
                 65536,
@@ -1151,6 +1188,7 @@ pub async fn install(mut input: Input, component: Component, bundle: Bundle) -> 
         input.settings.server_data = state.settings.server_data.clone();
         input.settings.tls_cert = state.settings.tls_cert.clone();
         input.settings.tls_key = state.settings.tls_key.clone();
+        input.settings.acme_domain = state.settings.acme_domain.clone();
         input.settings.admin_username = state.settings.admin_username.clone();
     }
     if !component.agent() && state.versions.contains_key(&Component::Agent) {
@@ -1344,13 +1382,43 @@ fn purge_data(path: &Path, id: &str, account: &Account, name: &str) -> Result<()
     for entry in fs::read_dir(path)? {
         let entry = entry?;
         let filename = entry.file_name();
+        if name == "panel.sqlite3" && filename == "acme" && entry.file_type()?.is_dir() {
+            let metadata = fs::symlink_metadata(entry.path())?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::MetadataExt;
+                if metadata.uid() != account.uid || metadata.mode() & 0o077 != 0 {
+                    return Err("Unowned ACME data prevents purge".into());
+                }
+            }
+            for child in fs::read_dir(entry.path())? {
+                let child = child?;
+                if !matches!(
+                    child.file_name().to_str(),
+                    Some("account.json" | "certificate.json")
+                ) || !child.file_type()?.is_file()
+                {
+                    return Err("Unexpected ACME data prevents purge".into());
+                }
+                bundle::read_regular(&child.path(), 1024 * 1024, account.uid)?;
+            }
+            continue;
+        }
         if !allowed.iter().any(|value| filename == value.as_str()) || !entry.file_type()?.is_file()
         {
             return Err("Unexpected unowned data prevents purge".into());
         }
     }
     for entry in fs::read_dir(path)? {
-        fs::remove_file(entry?.path())?;
+        let entry = entry?;
+        if entry.file_name() == "acme" && name == "panel.sqlite3" {
+            for child in fs::read_dir(entry.path())? {
+                fs::remove_file(child?.path())?;
+            }
+            fs::remove_dir(entry.path())?;
+        } else {
+            fs::remove_file(entry.path())?;
+        }
     }
     fs::remove_dir(path)?;
     Ok(())
@@ -1687,5 +1755,32 @@ mod tests {
         assert!(validate(&settings, Component::Agent).is_err());
         assert!(!managed_path(Path::new("/etc/shadow")));
         assert!(!managed_path(Path::new("/etc/systemd/system/ssh.service")));
+    }
+
+    #[test]
+    fn acme_requires_matching_domain_and_reserves_http_challenge_port() {
+        let mut settings = Settings::default();
+        settings.local_http = false;
+        settings.server_bind = "0.0.0.0:8443".into();
+        settings.server_origin = "https://panel.example.com:8443".into();
+        settings.acme_domain = Some("panel.example.com".into());
+        assert!(validate(&settings, Component::Server).is_ok());
+        assert!(server_unit(&settings).contains("AmbientCapabilities=CAP_NET_BIND_SERVICE"));
+        assert!(!server_unit(&settings).contains("LoadCredential="));
+        settings.server_bind = "0.0.0.0:80".into();
+        assert!(validate(&settings, Component::Server).is_err());
+        settings.server_bind = "0.0.0.0:8443".into();
+        settings.acme_domain = Some("other.example.com".into());
+        assert!(validate(&settings, Component::Server).is_err());
+        settings.acme_domain = Some("panel.example.com".into());
+        settings.server_origin = "https://panel.example.com:9443".into();
+        assert!(validate(&settings, Component::Server).is_err());
+        settings.server_origin = "https://panel.example.com:8443".into();
+        settings.acme_domain = Some("panel.example.com".into());
+        settings.tls_cert = Some("/tmp/cert.pem".into());
+        settings.tls_key = Some("/tmp/key.pem".into());
+        assert!(validate(&settings, Component::Server).is_err());
+        settings.acme_domain = None;
+        assert!(validate(&settings, Component::Server).is_ok());
     }
 }

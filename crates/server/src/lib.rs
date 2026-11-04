@@ -1,3 +1,4 @@
+pub mod acme;
 mod agents;
 mod api;
 pub mod app;

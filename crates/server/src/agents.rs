@@ -153,7 +153,7 @@ pub async fn connect(
         return Err(AppError::new(
             StatusCode::FORBIDDEN,
             "tls_required",
-            "Agent connections require TLS or explicit loopback development mode",
+            "Agent connections require TLS or an explicitly enabled HTTP mode",
         ));
     }
     if uri.query().is_some() {

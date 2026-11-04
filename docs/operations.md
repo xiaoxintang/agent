@@ -146,8 +146,7 @@ sudo panel-installer repair --component all
     "server_bind": "0.0.0.0:8443",
     "server_origin": "https://panel.example:8443",
     "local_http": false,
-    "tls_cert": "/root/server-cert.pem",
-    "tls_key": "/root/server-key.pem",
+    "acme_domain": "panel.example",
     "admin_username": "admin",
     "agent_server": "wss://panel.example:8443/agent/v1/connect",
     "agent_name": "first-node",
@@ -167,7 +166,9 @@ sudo ./panel-installer install --component all --non-interactive --config /root/
 
 安装器不会覆盖已有管理员；重复 install 拒绝替换已安装组件，使用 upgrade/repair。二进制和 unit/config 的归属、摘要保存在 `/var/lib/panel-installer/manifest.json`；服务数据另有归属标记。升级停下所选服务，备份静态文件与 SQLite/WAL，原子激活后实际启动并检查 HTTPS/服务状态；失败恢复原文件、身份和数据。持久 journal 在下一次 status/repair/维护命令执行时恢复未完成事务。不要删除 manifest 或检查点来绕过拒绝；未知文件、软链接、外来 unit/drop-in 会使操作停止。
 
-TLS 私钥原件在 `/etc/panel` 为 root-owned 0600。systemd credential 交给服务后，Server 在 0700 RuntimeDirectory 中获得 0600 临时副本，保持 Server 的严格私钥权限校验。Xray 验证由有 10 秒/128 MiB 限额的独立 DynamicUser 临时 unit 完成；通过私有 credential 读取 JSON，验证任务自动回收，helper 沙箱不获得 CAP_SETUID。
+手动 TLS 私钥原件在 `/etc/panel` 为 root-owned 0600。systemd credential 交给服务后，Server 在 0700 RuntimeDirectory 中获得 0600 临时副本，保持 Server 的严格私钥权限校验。Xray 验证由有 10 秒/128 MiB 限额的独立 DynamicUser 临时 unit 完成；通过私有 credential 读取 JSON，验证任务自动回收，helper 沙箱不获得 CAP_SETUID。
+
+自动证书使用 `acme_domain`，必须与 HTTPS Origin 的域名一致；与 `tls_cert`/`tls_key` 互斥。Server 在 IPv4 TCP 80 提供 HTTP-01 验证，HTTPS 仍使用 `server_bind` 的端口，因此服务端口不能为 80。确保域名指向此服务器、公网 TCP 80 和服务端口可访问，服务器可访问 Let's Encrypt 且系统根证书可用；如配置了 AAAA 记录，必须将 IPv6 80 端口转发到验证监听器。申请失败不会降级 HTTP，可用 `journalctl -u panel-server` 排查，修复后可手动重启服务。ACME 账户和证书保存在服务端数据目录的 `acme` 私有子目录，证书到期前 30 天开始续期并热加载，失败每小时重试；重启复用未过期证书。已有手动证书配置继续有效。
 
 ```sh
 # 保留身份、数据库、TLS/CA 配置、归属元数据和已有 Xray 运行配置

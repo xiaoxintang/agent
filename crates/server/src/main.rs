@@ -77,18 +77,40 @@ async fn main() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
     let tls_paths = config::tls_paths()?;
-    let listener =
-        tokio::net::TcpListener::bind(config::listen_address(tls_paths.is_some())?).await?;
+    let acme_domain = match std::env::var("PANEL_ACME_DOMAIN") {
+        Ok(domain) => Some(domain),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(error) => return Err(error.into()),
+    };
+    if acme_domain.is_some() && tls_paths.is_some() {
+        return Err("ACME and manual TLS certificates cannot be combined".into());
+    }
+    let tls_enabled = tls_paths.is_some() || acme_domain.is_some();
+    let listener = tokio::net::TcpListener::bind(config::listen_address(tls_enabled)?).await?;
     let address = listener.local_addr()?;
     let secure_cookie = config::secure_cookie()?;
-    if tls_paths.is_some() && !secure_cookie {
-        return Err("PANEL_DEV_HTTP cannot be used with TLS".into());
+    if tls_enabled && !secure_cookie {
+        return Err("HTTP mode cannot be used with TLS".into());
     }
-    let origin = if tls_paths.is_some() {
+    let origin = if tls_enabled {
         config::tls_origin(address)?
     } else {
         config::origin(address)?
     };
+    if let Some(domain) = &acme_domain {
+        let uri: axum::http::Uri = origin.parse()?;
+        if uri.host() != Some(domain.as_str())
+            || uri.port_u16().unwrap_or(443) != address.port()
+            || !domain.contains('.')
+            || domain.parse::<std::net::IpAddr>().is_ok()
+            || !domain.bytes().all(|byte| {
+                byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-' || byte == b'.'
+            })
+            || address.port() == 80
+        {
+            return Err("ACME requires a matching DNS origin and reserves port 80".into());
+        }
+    }
     let mut state = AppState::new(
         db::open(&config::data_directory()).await?,
         origin,
@@ -100,9 +122,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
         state.agents_shutdown.subscribe(),
     ));
     let shutdown = state.agents_shutdown.clone();
-    if let Some((cert, key)) = tls_paths {
+    if tls_enabled {
         state.tls_enabled = true;
-        let tls = axum_server::tls_rustls::RustlsConfig::from_pem_file(cert, key).await?;
+        let tls = if let Some(domain) = acme_domain {
+            panel_server::acme::start(domain, &data)
+                .await
+                .map_err(|error| format!("ACME startup failed: {error}"))?
+        } else {
+            let (cert, key) = tls_paths.ok_or("Missing TLS certificate")?;
+            axum_server::tls_rustls::RustlsConfig::from_pem_file(cert, key).await?
+        };
         let handle = axum_server::Handle::new();
         let stop = handle.clone();
         tokio::spawn(async move {

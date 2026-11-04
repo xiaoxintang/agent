@@ -47,7 +47,7 @@ SQLite/SQLx 采用 bundled SQLite（不启用动态扩展加载）、WAL、外�
 节点记录与审计在同一 SQLite 事务内写入；删除是撤销，保留审计关联。当前最多 100 个未撤销节点，审计查询最多返回 100 条。审计保留 90 天，在启动/审计写入时物理清理，读取也过滤超期记录。clients 已按全局身份建模，配置修订与流量基线/聚合在对应迁移中实现。
 
 enrollment 只存 token 哈希，10 分钟、单次消费；消费及节点凭据轮换原子提交，浏览器只得到一次性 enrollment token，长期凭据仅经 WSS 发给 Agent 并存其私有身份库。凭据有效 365 天；撤销会终止连接、使 enrollment 和未完成任务失效。
-WSS 使用 rustls + ring、用户提供证书，Agent 使用受信任根/显式私有 CA 验证主机名和有效期。没有 TLS 跳过验证、外部代理或证书服务。基础 TLS 是满足 Phase 2 WSS 的必要配套，ACME/续期/生产硬化仍在后续阶段。
+WSS 使用 rustls + ring，支持手动证书或通过 ACME HTTP-01 自动申请、续期及热加载 Let's Encrypt 证书；Agent 使用受信任根/显式私有 CA 验证主机名和有效期。没有 TLS 跳过验证或外部代理。
 Agent 协议 v2 有 64 KiB 帧/消息上限、UUID/UTC 时间/连接身份检查，15 秒心跳、45 秒超时。Server/Agent 需同步升级，不接受 v1 连接；既有 AgentStatus 任务和 receipt 形状保持可读。连接 generation 防止旧连接修改新连接状态，启动复位遗留在线记录；读取状态也把超过心跳窗口的 online 记录视为 offline。
 Server 使用 SQLite 作为任务队列，先持久化再发送，单连接串行分发，每节点最多 100 个有效未完成任务，无独立队列服务。重连只恢复未完成且未过期任务。Agent 的私有 SQLite receipt 在执行前提交、结果发送前持久化，重复 ID 返回缓存、不同 payload 拒绝；不确定的崩溃中任务标记 interrupted，不自动重做。开放 AgentStatus 和固定白名单 ServiceStatus，返回结果校验原操作/服务；服务结果写入与审计同事务，幂等键复用到不同操作时拒绝并审计。
 Agent 单目录用文件锁限制一个进程；超期 receipt 一天后清理，Server 终结任务 7 天后清理。期望配置 revision 的重连协调留到 Phase 5，当前不创建假配置状态。
