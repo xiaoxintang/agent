@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Modal, Space, Table, Typography } from "antd";
+import { Alert, Button, Space, Table, Typography } from "antd";
 import { ApiError, getTraffic } from "../api/panel";
+import PanelContainer from "./PanelContainer";
 
 const mib = (bytes: string) => `${(Number(bytes) / 1048576).toFixed(2)} MiB`;
-export default function TrafficPanel({ nodeId }: { nodeId: string }) {
-  const [open, setOpen] = useState(false);
+export default function TrafficPanel({
+  nodeId,
+  page = false,
+}: {
+  nodeId: string;
+  page?: boolean;
+}) {
+  const [open, setOpen] = useState(page);
   const cache = useQueryClient();
   const traffic = useQuery({
     queryKey: ["traffic", nodeId],
@@ -27,11 +34,14 @@ export default function TrafficPanel({ nodeId }: { nodeId: string }) {
   );
   return (
     <>
-      <Button size="small" onClick={() => setOpen(true)}>
-        流量统计
-      </Button>
+      {!page && (
+        <Button size="small" onClick={() => setOpen(true)}>
+          流量统计
+        </Button>
+      )}
       {open && (
-        <Modal
+        <PanelContainer
+          page={page}
           title="节点流量"
           open
           width={760}
@@ -107,7 +117,7 @@ export default function TrafficPanel({ nodeId }: { nodeId: string }) {
               ]}
             />
           </Space>
-        </Modal>
+        </PanelContainer>
       )}
     </>
   );

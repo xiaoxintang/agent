@@ -84,6 +84,43 @@ pub async fn nodes(State(state): State<AppState>, _: Session) -> Result<Json<Vec
     Ok(Json(rows.into_iter().map(Into::into).collect()))
 }
 
+pub async fn local_node(
+    State(state): State<AppState>,
+    _: Session,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let node_id: Option<String> =
+        sqlx::query_scalar("SELECT node_id FROM local_node WHERE singleton = 1")
+            .fetch_optional(&state.pool)
+            .await?;
+    Ok(Json(serde_json::json!({"node_id": node_id})))
+}
+
+pub async fn set_local_node(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
+    session: Session,
+    NodeId(id): NodeId,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let mut tx = state.pool.begin().await?;
+    let changed = sqlx::query("INSERT INTO local_node (singleton, node_id) SELECT 1, id FROM nodes WHERE id = ? AND revoked_at IS NULL ON CONFLICT(singleton) DO UPDATE SET node_id = excluded.node_id")
+        .bind(&id).execute(&mut *tx).await?;
+    if changed.rows_affected() == 0 {
+        return Err(AppError::not_found());
+    }
+    db::audit(
+        &mut tx,
+        Some(&session.admin.id),
+        Some(&id),
+        "node.local.set",
+        &id,
+        "success",
+        Some(&request_id.0),
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(Json(serde_json::json!({"node_id": id})))
+}
+
 pub async fn node(
     State(state): State<AppState>,
     _: Session,
@@ -187,6 +224,10 @@ pub async fn delete_node(
     if changed.rows_affected() == 0 {
         return Err(AppError::not_found());
     }
+    sqlx::query("DELETE FROM local_node WHERE node_id = ?")
+        .bind(&id)
+        .execute(&mut *tx)
+        .await?;
     sqlx::query("DELETE FROM node_metrics WHERE node_id = ?")
         .bind(&id)
         .execute(&mut *tx)

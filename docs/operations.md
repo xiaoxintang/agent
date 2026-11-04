@@ -130,6 +130,10 @@ Agent 每 15 秒采样，以固定 `xray.service` 的 systemd InvocationID 标�
 
 安装向导先选择组件：`Server + Agent` 同机安装面板与节点，`Server` 仅安装面板，`Agent` 仅安装节点并连接已有面板。接着选择配置模式：`Quick` 使用默认数据目录并启用开机启动；`Custom` 允许调整数据目录和开机启动。两种模式都需要配置连接和管理员信息。选择不启用 HTTPS 时可通过 IP 地址使用 HTTP 访问，需填写浏览器实际访问的完整 IP 和端口；密码、会话和传输数据均可能被窃听。同机 Agent 使用 loopback WS，远程 Agent 仍须使用 WSS。
 
+HTTP 向导会根据监听地址或本机路由推荐 IPv4 和监听端口；该值可以修改。NAT 后的公网 IP 或端口可能与推荐值不同，必须填写浏览器实际使用的 Origin。首次同机安装成功注册 Agent 后自动关联本机节点；已有安装可在节点管理中手动设置，关联由所有管理员共享。资源、Xray、配置、流量和 Agent 页面均针对该本机节点。
+
+认证后的 `GET /api/v1/local-node` 返回 `{"node_id":字符串或null}`；`PUT /api/v1/local-node/{id}` 将有效节点设为本机，要求会话、Origin 和 CSRF，并写入审计。撤销本机节点会清除关联。
+
 先取得经可信发布渠道验证的 bundle。`scripts/package.py` 只打包已有 Linux ELF，不自动构建；`bundle.json` 固定版本、架构和三个二进制摘要。Installer 的 `--bundle-sha256` 是**元数据文件**摘要，必须从已经认证的发布/交付渠道取得；bootstrap 的 `--sha256` 则是**整个压缩包**摘要，两者不可混用。不能把同一不可信下载旁的 checksum 当作独立信任锚。
 
 ```sh

@@ -10,14 +10,28 @@ body {
   margin: 0;
 }
 
-.panel {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 48px 24px;
+.app-layout {
+  min-height: 100vh;
 }
-
-.scope-note {
-  margin-top: 24px;
+.app-brand {
+  color: white !important;
+  padding: 20px 24px 0;
+}
+.app-header {
+  background: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.app-content {
+  padding: 24px;
+  min-width: 0;
+}
+.login-page {
+  max-width: 420px;
+  margin: 10vh auto;
+  padding: 24px;
 }
 
 .section {

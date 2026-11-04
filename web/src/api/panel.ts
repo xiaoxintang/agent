@@ -74,6 +74,15 @@ export const login = (input: LoginRequest) =>
 export const logout = (csrf: string) =>
   request<void>("/auth/logout", "POST", undefined, csrf);
 export const getNodes = () => request<Node[]>("/nodes");
+export const getLocalNode = () =>
+  request<{ node_id: string | null }>("/local-node");
+export const setLocalNode = (id: string, csrf: string) =>
+  request<{ node_id: string }>(
+    `/local-node/${encodeURIComponent(id)}`,
+    "PUT",
+    undefined,
+    csrf,
+  );
 export const getAudit = () => request<AuditEntry[]>("/audit");
 export const createNode = (input: NodeInput, csrf: string) =>
   request<Node>("/nodes", "POST", input, csrf);

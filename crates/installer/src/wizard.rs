@@ -5,6 +5,68 @@ use crate::{
 use dialoguer::{Confirm, Input as Prompt, Password, Select};
 use std::{io::IsTerminal, path::PathBuf};
 
+fn http_origin_default(bind: std::net::SocketAddr) -> Option<String> {
+    let preferred = || {
+        let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+        socket.connect("192.0.2.1:80").ok()?;
+        match socket.local_addr().ok()?.ip() {
+            std::net::IpAddr::V4(ip) if !ip.is_unspecified() && !ip.is_loopback() => Some(ip),
+            _ => None,
+        }
+    };
+    http_origin_from(bind, preferred)
+}
+
+fn http_origin_from(
+    bind: std::net::SocketAddr,
+    preferred: impl FnOnce() -> Option<std::net::Ipv4Addr>,
+) -> Option<String> {
+    let ip = match bind.ip() {
+        std::net::IpAddr::V4(ip) if !ip.is_unspecified() => ip,
+        std::net::IpAddr::V4(_) => preferred()?,
+        std::net::IpAddr::V6(ip) if ip.is_unspecified() => preferred()?,
+        _ => return None,
+    };
+    Some(if bind.port() == 80 {
+        format!("http://{ip}")
+    } else {
+        format!("http://{ip}:{}", bind.port())
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{http_origin_default, http_origin_from};
+
+    #[test]
+    fn http_default_uses_explicit_ipv4_and_port() {
+        assert_eq!(
+            http_origin_default("192.168.1.5:8080".parse().unwrap()).as_deref(),
+            Some("http://192.168.1.5:8080")
+        );
+        assert_eq!(
+            http_origin_default("192.168.1.5:80".parse().unwrap()).as_deref(),
+            Some("http://192.168.1.5")
+        );
+        assert!(http_origin_default("[::1]:8080".parse().unwrap()).is_none());
+        assert_eq!(
+            http_origin_from("0.0.0.0:8080".parse().unwrap(), || Some(
+                "192.168.1.7".parse().unwrap()
+            ))
+            .as_deref(),
+            Some("http://192.168.1.7:8080")
+        );
+        assert!(http_origin_from("0.0.0.0:8080".parse().unwrap(), || None).is_none());
+        assert_eq!(
+            http_origin_from("[::]:8080".parse().unwrap(), || Some(
+                "192.168.1.7".parse().unwrap()
+            ))
+            .as_deref(),
+            Some("http://192.168.1.7:8080")
+        );
+    }
+}
+
 pub fn install(args: &mut InstallArgs) -> Result<Input> {
     if !std::io::stdin().is_terminal() {
         return Err(
@@ -50,18 +112,19 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
                 .into(),
             )
             .interact_text()?;
-        let server_port = settings.server_bind.parse::<std::net::SocketAddr>()?.port();
+        let server_bind = settings.server_bind.parse::<std::net::SocketAddr>()?;
+        let server_port = server_bind.port();
         let default_origin = if server_port == 443 {
             "https://panel.example".into()
         } else {
             format!("https://panel.example:{server_port}")
         };
         settings.server_origin = if settings.local_http {
-            Prompt::new()
-                .with_prompt(
-                    "Browser HTTP origin with server IP and port (e.g. http://203.0.113.10:8080)",
-                )
-                .interact_text()?
+            let prompt = Prompt::new().with_prompt("Browser HTTP origin (NAT public IP or external port may differ; enter the actual browser address)");
+            match http_origin_default(server_bind) {
+                Some(default) => prompt.default(default).interact_text()?,
+                None => prompt.interact_text()?,
+            }
         } else {
             Prompt::new()
                 .with_prompt("Exact browser origin (no trailing slash)")

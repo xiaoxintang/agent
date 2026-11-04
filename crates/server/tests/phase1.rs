@@ -95,7 +95,7 @@ async fn migrations_are_idempotent_and_enforce_foreign_keys_and_private_files() 
             .fetch_one(&pool)
             .await
             .unwrap();
-    assert_eq!(migrations, 5);
+    assert_eq!(migrations, 6);
     let journal: String = sqlx::query_scalar("PRAGMA journal_mode")
         .fetch_one(&pool)
         .await
@@ -138,9 +138,99 @@ async fn migrations_are_idempotent_and_enforce_foreign_keys_and_private_files() 
             .fetch_one(&reopened)
             .await
             .unwrap(),
-        5
+        6
     );
     reopened.close().await;
+}
+
+#[tokio::test]
+async fn local_node_requires_auth_and_csrf_and_is_cleared_when_revoked() {
+    let app = TestApp::new(true).await;
+    assert_eq!(
+        app.request("GET", "/api/v1/local-node", None, &[])
+            .await
+            .status(),
+        StatusCode::UNAUTHORIZED
+    );
+    let (cookie, csrf) = app.login().await;
+    let headers = [
+        ("cookie", cookie.as_str()),
+        ("origin", ORIGIN),
+        ("x-csrf-token", csrf.as_str()),
+    ];
+    let node = body(
+        app.request(
+            "POST",
+            "/api/v1/nodes",
+            Some(json!({"name":"local"})),
+            &headers,
+        )
+        .await,
+    )
+    .await;
+    let id = node["id"].as_str().unwrap();
+    let path = format!("/api/v1/local-node/{id}");
+    assert_eq!(
+        app.request(
+            "PUT",
+            &path,
+            None,
+            &[("cookie", &cookie), ("origin", ORIGIN)]
+        )
+        .await
+        .status(),
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        app.request(
+            "PUT",
+            "/api/v1/local-node/00000000-0000-0000-0000-000000000000",
+            None,
+            &headers
+        )
+        .await
+        .status(),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        app.request("PUT", &path, None, &headers).await.status(),
+        StatusCode::OK
+    );
+    assert_eq!(
+        body(
+            app.request("GET", "/api/v1/local-node", None, &[("cookie", &cookie)])
+                .await
+        )
+        .await["node_id"],
+        id
+    );
+    assert_eq!(
+        app.request("DELETE", &format!("/api/v1/nodes/{id}"), None, &headers)
+            .await
+            .status(),
+        StatusCode::NO_CONTENT
+    );
+    assert!(
+        body(
+            app.request("GET", "/api/v1/local-node", None, &[("cookie", &cookie)])
+                .await
+        )
+        .await["node_id"]
+            .is_null()
+    );
+    let audit = body(
+        app.request("GET", "/api/v1/audit", None, &[("cookie", &cookie)])
+            .await,
+    )
+    .await;
+    assert!(
+        audit
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|entry| entry["action"] == "node.local.set")
+    );
+    app.pool.close().await;
 }
 
 #[tokio::test]

@@ -20,6 +20,11 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/auth/logout", axum::routing::post(auth::logout))
         .route("/api/v1/auth/me", get(auth::me))
         .route("/api/v1/nodes", get(api::nodes).post(api::create_node))
+        .route("/api/v1/local-node", get(api::local_node))
+        .route(
+            "/api/v1/local-node/{id}",
+            axum::routing::put(api::set_local_node),
+        )
         .route(
             "/api/v1/nodes/enrollments",
             axum::routing::post(agents::issue),
@@ -77,6 +82,15 @@ pub fn router(state: AppState) -> Router {
             axum::routing::post(configuration::apply),
         )
         .route("/", get(static_assets::index))
+        .route("/login", get(static_assets::index))
+        .route("/overview", get(static_assets::index))
+        .route("/resources", get(static_assets::index))
+        .route("/xray", get(static_assets::index))
+        .route("/configuration", get(static_assets::index))
+        .route("/traffic", get(static_assets::index))
+        .route("/agent", get(static_assets::index))
+        .route("/nodes", get(static_assets::index))
+        .route("/audit", get(static_assets::index))
         .fallback(fallback)
         .method_not_allowed_fallback(method_not_allowed)
         .layer(DefaultBodyLimit::max(16 * 1024))

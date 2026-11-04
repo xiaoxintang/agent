@@ -46,8 +46,13 @@ try {
   await page.getByLabel("账号", { exact: true }).fill(state.username);
   await page.getByLabel("密码", { exact: true }).fill(state.password);
   await page.getByRole("button", { name: /登\s*录/ }).click();
+  await page.getByRole("link", { name: "节点管理", exact: true }).click();
   const row = page.locator(`tr[data-row-key="${state.node_id}"]`);
   await expect(row.getByText("在线", { exact: true })).toBeVisible();
+  if (await row.getByRole("button", { name: "设为本机" }).count()) {
+    await row.getByRole("button", { name: "设为本机" }).click();
+  }
+  await expect(row.getByText("本机", { exact: true })).toBeVisible();
   await row.getByRole("button", { name: "注册 Agent", exact: true }).click();
   const enrollment = page.getByRole("dialog", {
     name: "注册 Agent",
@@ -74,8 +79,8 @@ try {
     "Fixture Agent re-enrollment failed; credentials redacted",
   );
   await expect(row.getByText("在线", { exact: true })).toBeVisible();
-  await row.getByRole("button", { name: "Xray 管理", exact: true }).click();
-  const xray = page.getByRole("dialog", { name: "受管 Xray", exact: true });
+  await page.getByRole("link", { name: "Xray 管理", exact: true }).click();
+  const xray = page.locator(".ant-card").filter({ hasText: "受管 Xray" });
   await xray.getByRole("button", { name: "卸载并保留数据" }).click();
   await confirm();
   await expect(xray.getByText(/未安装（保留的数据/)).toBeVisible({
@@ -85,12 +90,10 @@ try {
   await expect(xray.getByText(/已安装 26\.10\.31.*运行中/)).toBeVisible({
     timeout: 240000,
   });
-  await xray.getByRole("button", { name: "关闭 Xray 管理" }).click();
-  await row.getByRole("button", { name: "入站与客户端", exact: true }).click();
-  const config = page.getByRole("dialog", {
-    name: "VLESS + REALITY 配置",
-    exact: true,
-  });
+  await page.getByRole("link", { name: "配置管理", exact: true }).click();
+  const config = page
+    .locator(".ant-card")
+    .filter({ hasText: "VLESS + REALITY 配置" });
   await config.getByLabel("入站名称", { exact: true }).fill("Browser inbound");
   await config.getByLabel("监听 IP", { exact: true }).fill("127.0.0.1");
   await config
@@ -131,14 +134,12 @@ try {
   await expect(config.getByText(/修订\s*2\s*·\s*applied/)).toBeVisible({
     timeout: 120000,
   });
-  await config.getByRole("button", { name: "关闭配置", exact: true }).click();
-  await expect(config).toHaveCount(0);
   assert.equal(
     (await page.evaluate(() => JSON.stringify(localStorage))).includes(token),
     false,
   );
-  await row.getByRole("button", { name: "流量统计", exact: true }).click();
-  const traffic = page.getByRole("dialog", { name: "节点流量", exact: true });
+  await page.getByRole("link", { name: "流量统计", exact: true }).click();
+  const traffic = page.locator(".ant-card").filter({ hasText: "节点流量" });
   await expect
     .poll(
       async () => {
@@ -158,7 +159,6 @@ try {
     timeout: 45000,
   });
   await expect(traffic.getByText(/最近 7 天每小时/)).toBeVisible();
-  await traffic.getByRole("button", { name: "关闭流量", exact: true }).click();
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({

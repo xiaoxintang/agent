@@ -13,9 +13,11 @@ import type { EnrollmentResponse, ManagedService } from "../types/generated";
 export default function AgentActions({
   nodeId,
   csrf,
+  registrationOnly = false,
 }: {
   nodeId: string;
   csrf: string;
+  registrationOnly?: boolean;
 }) {
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -94,30 +96,34 @@ export default function AgentActions({
         <Button size="small" onClick={() => void enroll()}>
           注册 Agent
         </Button>
-        <Button
-          size="small"
-          loading={creating}
-          disabled={!!taskId && !terminal}
-          onClick={() => void probe()}
-        >
-          查询 Agent 状态
-        </Button>
-        <Button
-          size="small"
-          loading={creating}
-          disabled={!!taskId && !terminal}
-          onClick={() => void probe("panel_agent")}
-        >
-          查询 Agent 服务
-        </Button>
-        <Button
-          size="small"
-          loading={creating}
-          disabled={!!taskId && !terminal}
-          onClick={() => void probe("xray")}
-        >
-          查询 Xray 服务
-        </Button>
+        {!registrationOnly && (
+          <>
+            <Button
+              size="small"
+              loading={creating}
+              disabled={!!taskId && !terminal}
+              onClick={() => void probe()}
+            >
+              查询 Agent 状态
+            </Button>
+            <Button
+              size="small"
+              loading={creating}
+              disabled={!!taskId && !terminal}
+              onClick={() => void probe("panel_agent")}
+            >
+              查询 Agent 服务
+            </Button>
+            <Button
+              size="small"
+              loading={creating}
+              disabled={!!taskId && !terminal}
+              onClick={() => void probe("xray")}
+            >
+              查询 Xray 服务
+            </Button>
+          </>
+        )}
       </Space>
       {!open && error && (
         <Typography.Text type="danger">{error}</Typography.Text>
@@ -158,6 +164,12 @@ export default function AgentActions({
             showIcon
             title="令牌仅展示这一次，10 分钟内有效。使用后将替换此节点原有的 Agent 凭据。"
           />
+          {window.location.protocol !== "https:" && (
+            <Alert
+              type="warning"
+              title="明文 WS 仅支持本机回环地址；远程 Agent 需要 HTTPS/WSS。"
+            />
+          )}
           {error && <Alert type="error" title={error} />}
           {!enrollment && !error && <Spin aria-label="正在生成注册令牌" />}
           {enrollment && (

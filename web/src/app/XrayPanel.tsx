@@ -1,26 +1,21 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Alert,
-  Button,
-  Modal,
-  Popconfirm,
-  Select,
-  Space,
-  Typography,
-} from "antd";
+import { Alert, Button, Popconfirm, Select, Space, Typography } from "antd";
 import { ApiError, createXrayTask, getTask } from "../api/panel";
 import type { XrayVersion } from "../types/generated";
+import PanelContainer from "./PanelContainer";
 
 export default function XrayPanel({
   nodeId,
   csrf,
+  page = false,
 }: {
   nodeId: string;
   csrf: string;
+  page?: boolean;
 }) {
   const client = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(page);
   const [version, setVersion] = useState<XrayVersion>("26.10.31");
   const [taskId, setTaskId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -90,11 +85,14 @@ export default function XrayPanel({
   };
   return (
     <>
-      <Button size="small" onClick={() => setOpen(true)}>
-        Xray 管理
-      </Button>
+      {!page && (
+        <Button size="small" onClick={() => setOpen(true)}>
+          Xray 管理
+        </Button>
+      )}
       {open && (
-        <Modal
+        <PanelContainer
+          page={page}
           title="受管 Xray"
           open
           onCancel={() => setOpen(false)}
@@ -175,7 +173,7 @@ export default function XrayPanel({
               <Alert type="error" title={errors[failure] ?? failure} />
             )}
           </Space>
-        </Modal>
+        </PanelContainer>
       )}
     </>
   );

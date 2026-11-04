@@ -797,9 +797,9 @@ async fn client(settings: &Settings) -> Result<reqwest::Client> {
     }
     Ok(builder.build()?)
 }
-async fn enrollment(state: &Manifest, input: &Input) -> Result<String> {
+async fn enrollment(state: &Manifest, input: &Input) -> Result<(String, Option<String>)> {
     if let Some(token) = &input.enrollment_token {
-        return Ok(token.clone());
+        return Ok((token.clone(), None));
     }
     if !state.versions.contains_key(&Component::Server) {
         return Err("Agent-only install requires a one-time enrollment token".into());
@@ -857,16 +857,19 @@ async fn enrollment(state: &Manifest, input: &Input) -> Result<String> {
         .header("X-CSRF-Token", csrf)
         .send()
         .await;
-    Ok(token["token"]
-        .as_str()
-        .ok_or("Missing enrollment token")?
-        .into())
+    Ok((
+        token["token"]
+            .as_str()
+            .ok_or("Missing enrollment token")?
+            .into(),
+        Some(node["id"].as_str().ok_or("Missing node ID")?.into()),
+    ))
 }
 async fn enroll(state: &Manifest, input: &Input) -> Result<()> {
     if Path::new(AGENT_DATA).join("agent.sqlite3").exists() && input.enrollment_token.is_none() {
         return Ok(());
     }
-    let token = enrollment(state, input).await?;
+    let (token, node_id) = enrollment(state, input).await?;
     let account = state
         .accounts
         .get("panel-agent")
@@ -895,6 +898,41 @@ async fn enroll(state: &Manifest, input: &Input) -> Result<()> {
         .success()
     {
         return Err("Agent enrollment failed; token redacted".into());
+    }
+    if let Some(node_id) = node_id {
+        let client = client(&state.settings).await?;
+        let origin = &state.settings.server_origin;
+        let endpoint = if state.settings.local_http {
+            local_http_origin(&state.settings)?
+        } else {
+            origin.clone()
+        };
+        let (headers, session) = request(&client, reqwest::Method::POST, &format!("{endpoint}/api/v1/auth/login"), serde_json::json!({"username": state.settings.admin_username, "password": input.admin_password.as_ref().ok_or("Missing administrator password")?}), None, origin).await?;
+        let cookie = headers
+            .get("set-cookie")
+            .ok_or("Missing setup session")?
+            .to_str()?
+            .split(';')
+            .next()
+            .ok_or("Missing setup cookie")?;
+        let csrf = session["csrf_token"].as_str().ok_or("Missing setup CSRF")?;
+        let result = request(
+            &client,
+            reqwest::Method::PUT,
+            &format!("{endpoint}/api/v1/local-node/{node_id}"),
+            serde_json::json!({}),
+            Some((cookie, csrf)),
+            origin,
+        )
+        .await;
+        let _ = client
+            .post(format!("{endpoint}/api/v1/auth/logout"))
+            .header("Origin", origin)
+            .header("Cookie", cookie)
+            .header("X-CSRF-Token", csrf)
+            .send()
+            .await;
+        result?;
     }
     Ok(())
 }

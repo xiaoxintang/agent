@@ -91,7 +91,7 @@ async fn unknown_routes_and_private_files_never_fall_back_to_the_spa() {
         "/api",
         "/api/v1/missing",
         "/agent/v1/missing",
-        "/nodes",
+        "/nodes/missing",
         "/assets/missing.js",
         "/Cargo.toml",
         "/.git/config",
@@ -103,6 +103,28 @@ async fn unknown_routes_and_private_files_never_fall_back_to_the_spa() {
         assert_eq!(response.headers()[header::CONTENT_TYPE], "application/json");
         let json: serde_json::Value = serde_json::from_slice(&body(response).await).unwrap();
         assert_eq!(json["error"]["code"], "not_found");
+    }
+}
+
+#[tokio::test]
+async fn frontend_routes_serve_the_spa_and_support_head() {
+    for path in [
+        "/login",
+        "/overview",
+        "/resources",
+        "/xray",
+        "/configuration",
+        "/traffic",
+        "/agent",
+        "/nodes",
+        "/audit",
+    ] {
+        let response = request("GET", path).await;
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+        assert_eq!(response.headers()[header::CONTENT_TYPE], "text/html");
+        let response = request("HEAD", path).await;
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+        assert!(body(response).await.is_empty());
     }
 }
 

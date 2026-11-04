@@ -7,7 +7,6 @@ import {
   Form,
   Input,
   InputNumber,
-  Modal,
   Popconfirm,
   Select,
   Space,
@@ -27,6 +26,7 @@ import {
   applyConfig,
 } from "../api/panel";
 import type { InboundView } from "../types/generated";
+import PanelContainer from "./PanelContainer";
 
 type Fields = {
   name: string;
@@ -40,12 +40,14 @@ type Fields = {
 export default function ConfigPanel({
   nodeId,
   csrf,
+  page = false,
 }: {
   nodeId: string;
   csrf: string;
+  page?: boolean;
 }) {
   const cache = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(page);
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState<string>();
   const [editingClient, setEditingClient] = useState<string | null>(null);
@@ -121,11 +123,14 @@ export default function ConfigPanel({
   };
   return (
     <>
-      <Button size="small" onClick={() => setOpen(true)}>
-        入站与客户端
-      </Button>
+      {!page && (
+        <Button size="small" onClick={() => setOpen(true)}>
+          入站与客户端
+        </Button>
+      )}
       {open && (
-        <Modal
+        <PanelContainer
+          page={page}
           title="VLESS + REALITY 配置"
           open
           width={800}
@@ -449,7 +454,7 @@ export default function ConfigPanel({
               </Typography.Text>
             ))}
           </Space>
-        </Modal>
+        </PanelContainer>
       )}
     </>
   );

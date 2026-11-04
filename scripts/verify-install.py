@@ -219,6 +219,7 @@ try:
     nodes = api("/nodes")
     assert len(nodes) == 1
     node = nodes[0]["id"]
+    assert api("/local-node")["node_id"] == node
     wait(lambda: api(f"/nodes/{node}")["status"] == "online", "Agent online")
     wait(lambda: not api(f"/nodes/{node}/metrics")["stale"], "real Linux metrics")
     for unit, username in [("panel-agent.service", "panel-agent"), ("panel-server.service", "panel-server")]:

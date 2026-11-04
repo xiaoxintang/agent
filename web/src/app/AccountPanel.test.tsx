@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import AccountPanel from "./AccountPanel";
+import AccountPanel, { Management } from "./AccountPanel";
 
 const session = {
   admin: { id: "admin-id", username: "admin" },
@@ -9,6 +9,60 @@ const session = {
   expires_at: 9999999999,
 };
 const response = (value: unknown) => new Response(JSON.stringify(value));
+
+it("shows node metrics, stale data and allows setting the local node", async () => {
+  const fetch = vi.fn((url: string, options?: RequestInit) => {
+    if (url.endsWith("/local-node") || url.endsWith("/local-node/node-1"))
+      return Promise.resolve(
+        response({ node_id: options?.method === "PUT" ? "node-1" : null }),
+      );
+    if (url.endsWith("/nodes"))
+      return Promise.resolve(
+        response([
+          { id: "node-1", name: "node one", status: "online" },
+          { id: "node-2", name: "node two", status: "offline" },
+        ]),
+      );
+    if (url.endsWith("/node-1/metrics"))
+      return Promise.resolve(
+        response({
+          stale: true,
+          snapshot: {
+            cpu_percent: 25,
+            memory: { total_bytes: "100", used_bytes: "50" },
+          },
+        }),
+      );
+    if (url.endsWith("/node-2/metrics"))
+      return Promise.resolve(new Response("", { status: 500 }));
+    throw new Error(`Unexpected test request: ${url}`);
+  });
+  vi.stubGlobal("fetch", fetch);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <Management session={session} page="nodes" />
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByText("25.0%（过期）")).toBeTruthy();
+  expect(await screen.findByText("50.0%（过期）")).toBeTruthy();
+  expect((await screen.findAllByText("获取失败")).length).toBeGreaterThan(0);
+  fireEvent.click(screen.getAllByRole("button", { name: "设为本机" })[0]);
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(
+        ([url, options]) =>
+          url.endsWith("/local-node/node-1") &&
+          options?.method === "PUT" &&
+          (options.headers as Record<string, string>)["X-CSRF-Token"] ===
+            "test-csrf",
+      ),
+    ).toBe(true),
+  );
+  client.clear();
+});
 
 it("logs in, creates and edits a real API-backed node, then logs out", async () => {
   let loggedIn = false;

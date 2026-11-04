@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Descriptions, Modal, Spin, Typography } from "antd";
+import { Alert, Button, Descriptions, Spin, Typography } from "antd";
 import { ApiError, getMetrics } from "../api/panel";
+import PanelContainer from "./PanelContainer";
 
 function bytes(value: string | undefined) {
   if (value === undefined) return "不可用";
@@ -16,9 +17,15 @@ function rate(value: number | null | undefined) {
     : `${(value / 1024).toFixed(1)} KiB/s`;
 }
 
-export default function NodeMetricsPanel({ nodeId }: { nodeId: string }) {
+export default function NodeMetricsPanel({
+  nodeId,
+  page = false,
+}: {
+  nodeId: string;
+  page?: boolean;
+}) {
   const client = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(page);
   const metrics = useQuery({
     queryKey: ["metrics", nodeId],
     queryFn: () => getMetrics(nodeId),
@@ -44,11 +51,14 @@ export default function NodeMetricsPanel({ nodeId }: { nodeId: string }) {
   const cpuIssue = issues.find((issue) => issue.metric === "cpu");
   return (
     <>
-      <Button size="small" onClick={() => setOpen(true)}>
-        查看资源
-      </Button>
+      {!page && (
+        <Button size="small" onClick={() => setOpen(true)}>
+          查看资源
+        </Button>
+      )}
       {open && (
-        <Modal
+        <PanelContainer
+          page={page}
           title="节点资源"
           open
           onCancel={() => setOpen(false)}
@@ -135,7 +145,7 @@ export default function NodeMetricsPanel({ nodeId }: { nodeId: string }) {
               </Typography.Paragraph>
             </>
           )}
-        </Modal>
+        </PanelContainer>
       )}
     </>
   );
