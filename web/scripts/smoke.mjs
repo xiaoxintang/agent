@@ -121,10 +121,26 @@ try {
     assert.ok((await asset.arrayBuffer()).byteLength > 0);
   }
   for (const path of [
+    "/login",
+    "/overview",
+    "/resources",
+    "/xray",
+    "/configuration",
+    "/traffic",
+    "/agent",
+    "/nodes",
+    "/audit",
+  ]) {
+    const response = await get(path);
+    assert.equal(response.status, 200, path);
+    assert.equal(response.headers.get("cache-control"), "no-cache", path);
+    assert.equal(await response.text(), html, path);
+  }
+  for (const path of [
     "/api/v1/unknown",
     "/assets/missing.js",
     "/.git/config",
-    "/nodes",
+    "/nodes/missing",
   ]) {
     const response = await get(path);
     assert.equal(response.status, 404, path);
