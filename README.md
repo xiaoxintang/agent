@@ -1,107 +1,126 @@
 # Linux Panel
 
-轻量化、自托管 Linux 多节点管理面板。架构与分阶段验收标准以
-[ARCHITECTURE_PLAN.md](ARCHITECTURE_PLAN.md) 为准。
+自托管 Linux 多节点管理面板：Rust Server、非 root Agent、受限 Xray helper，以及内嵌 React 管理界面。v0.1.0 已提供签名的 Linux x86_64/aarch64 发布包。
 
-当前推进到 **Phase 8**：认证/WSS/Linux 指标、受管 Xray 生命周期、VLESS+REALITY 入站/客户端与原子配置修订，以及真实 StatsService 流量、小时图表和最终一致配额/到期策略。Agent 保持非 root，通过固定 socket 的短生命周期 helper 操作 Xray；已实现独立安装器；CI 与双架构真实维护验收已通过，首个签名版本 [v0.1.0](https://github.com/xiaoxintang/agent/releases/tag/v0.1.0) 已发布，含 x86_64/aarch64 静态构建。发布验证见 [release.md](docs/release.md)，冷备份恢复见 [backup-restore.md](docs/backup-restore.md)。
+## 用户：验证并一键安装
 
-## 环境
+中央节点需要 Debian/Ubuntu、systemd ≥249、root 权限和自己的 TLS 证书。安装器没有默认密码；公网使用必须启用 HTTPS。每个被管理节点需要独立安装 Agent。安装器直接下载固定版本的发布包，并校验可信 SHA-256。
 
-- Rust 1.96.0（Rust 2024）；建议通过 rustup 安装，`rust-toolchain.toml` 锁定工具链并包含 rustfmt、Clippy。
-- Node.js 22.23.2、pnpm 12.16.1（开发和构建使用）；`web/package.json` 的 `packageManager` 固定 pnpm 版本，其他 Node 版本范围见同文件。pnpm 安装方式见[官方说明](https://pnpm.io/installation)。
-- 首次安装依赖需要访问 npm 和 crates.io。
-- 本地支持 macOS/Linux；已在 Ubuntu 24.04 x86_64/ARM64 与 Debian 13 ARM64/systemd 完成真实安装、维护验收。Rust/Pnpm 检查和带 OIDC Sigstore 签名的 Linux x86_64/aarch64 Release 已公开发布。
-
-## 从干净检出构建
-
-必须先构建前端，随后 Rust 将生成的静态资源编译进服务端。缺少前端产物时构建会明确失败。
+先准备 `curl`、`cosign` 3.1.4 和 `sha256sum`。下面整段命令先验证 GitHub OIDC 签名的校验清单，再检查引导脚本本身；随后 bootstrap 会按平台下载归档并再次校验：
 
 ```sh
-cd web
-pnpm install --frozen-lockfile
-pnpm run build
-cd ..
+set -eu
+umask 077
+panel_version=v0.1.0
+panel_release=https://github.com/xiaoxintang/agent/releases/download/$panel_version
+panel_tmp=$(mktemp -d)
+trap 'rm -rf "$panel_tmp"' EXIT HUP INT TERM
+curl --fail --silent --show-error --location --proto '=https' "$panel_release/SHA256SUMS" -o "$panel_tmp/SHA256SUMS"
+curl --fail --silent --show-error --location --proto '=https' "$panel_release/SHA256SUMS.sigstore.json" -o "$panel_tmp/SHA256SUMS.sigstore.json"
+curl --fail --silent --show-error --location --proto '=https' "$panel_release/bootstrap.sh" -o "$panel_tmp/bootstrap.sh"
+cosign verify-blob \
+  --bundle "$panel_tmp/SHA256SUMS.sigstore.json" \
+  --certificate-identity 'https://github.com/xiaoxintang/agent/.github/workflows/release.yml@refs/tags/v0.1.0' \
+  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+  "$panel_tmp/SHA256SUMS"
+panel_bootstrap_sha=$(awk '$2=="./bootstrap.sh" {print $1}' "$panel_tmp/SHA256SUMS")
+printf '%s  %s\n' "$panel_bootstrap_sha" "$panel_tmp/bootstrap.sh" | sha256sum --check
+case "$(uname -m)" in
+  x86_64) panel_archive=panel-linux-x86_64-$panel_version.tar.gz ;;
+  aarch64|arm64) panel_archive=panel-linux-aarch64-$panel_version.tar.gz ;;
+  *) echo 'Unsupported Linux architecture' >&2; exit 1 ;;
+esac
+panel_archive_sha=$(awk -v name="./$panel_archive" '$2==name {print $1}' "$panel_tmp/SHA256SUMS")
+sudo sh "$panel_tmp/bootstrap.sh" --version "$panel_version" --sha256 "$panel_archive_sha" --component all
+```
+
+交互安装会询问 TLS 证书和私钥、浏览器访问地址、首个管理员密码、节点名称及是否安装 Xray。密码隐藏输入。安装器创建 Server 和 Agent 专用账号、systemd 服务与受限 helper；首次合并安装会创建本机节点并注册 Agent。它不会自动申请或续期 TLS 证书。
+
+如需 Server 与节点分开部署，在中央机使用 `--component server`，在每个工作节点使用同一验证流程并添加 `--component agent`。向导会询问 WSS 地址和一次性注册 token；token 在面板的节点页面生成。每台机器使用独立身份库，禁止复制另一节点的 Agent 数据目录。
+
+非交互安装使用 root-owned、权限 0600 的配置文件保存 TLS 路径和密码。字段及示例见[安装与运维说明](docs/operations.md)。安装器也可单独运行：
+
+```sh
+sudo panel-installer status
+sudo panel-installer upgrade --component all --bundle /root/panel-bundle --bundle-sha256 TRUSTED_BUNDLE_JSON_SHA256 --version 0.1.0
+sudo panel-installer repair --component all
+sudo panel-installer uninstall --component all
+```
+
+普通卸载保留数据库、TLS 配置及本机 Agent 身份。永久清理必须输入准确确认：
+
+```sh
+sudo panel-installer uninstall --component all --purge --remove-xray --confirm 'PURGE PANEL DATA'
+```
+
+首次登录后，在节点列表使用“注册 Agent”“Xray 管理”和“入站与客户端”完成日常操作：创建 VLESS+REALITY 入站和客户端、关联后应用配置修订；“流量统计”查看 Xray 统计、小时图和客户端用量。设置配额或到期后，系统会从最后已提交的配置中移除客户端并提交新修订。配额最终一致，节点离线或配置应用失败时不会保证即时断流。完整限制见[运维说明](docs/operations.md)与[安全说明](docs/security.md)。
+
+验证签名、校验清单和归档的完整步骤见[发布验证说明](docs/release.md)。建议先阅读[备份与恢复](docs/backup-restore.md)。
+
+## 开发者：本地运行
+
+依赖：Rust 1.96.0、Node.js 22.23.2 和 pnpm 12.16.1。pnpm 版本由 `web/package.json` 固定。构建 Server 前必须先生成并嵌入前端资源。
+
+```sh
+pnpm --dir web install --frozen-lockfile
+pnpm --dir web run build
 cargo build --workspace --release --locked
-# 仅首次运行；交互输入并确认密码，不回显
 ./target/release/panel-server init-admin --username admin
-# 显式开启仅用于 loopback HTTP 的开发 Cookie
-PANEL_DEV_HTTP=1 ./target/release/panel-server
 ```
 
-浏览器访问 <http://127.0.0.1:8080>，使用刚初始化的账号登录，创建、重命名、撤销节点并查看审计。点击“注册 Agent”获取一次性令牌，接入后查看在线状态、Linux 资源和只读服务状态。已有管理员时跳过 `init-admin`；再次初始化会拒绝覆盖。
+初始化命令在终端中隐藏输入密码。启动本机开发 Server：
 
 ```sh
-curl --fail http://127.0.0.1:8080/api/v1/health
-# {"status":"ok","version":"0.1.0"}
-./target/release/panel-agent
-./target/release/panel-agent --version
-./target/release/panel-installer --help
+PANEL_DEV_HTTP=1 PANEL_ORIGIN=http://127.0.0.1:5173 ./target/release/panel-server
 ```
 
-`panel-agent` 无子命令时打印版本后退出；Installer 提供 TTY 向导与 install/upgrade/repair/uninstall/status，生产安装方法见[运行说明](docs/operations.md)。
-明文 HTTP 的 `PANEL_BIND` 只能设置为 loopback 地址，例如 `127.0.0.1:9090` 或 `[::1]:8080`。提供 `PANEL_TLS_CERT`/`PANEL_TLS_KEY` 后启用 HTTPS；公开 TLS 监听必须设置准确的 HTTPS `PANEL_ORIGIN`，不能启用开发 Cookie 模式。
-
-运行构建后的三个二进制不需要 Node.js、web-dist 目录、Caddy、Nginx、数据库服务或容器。
-服务在 `data/panel.sqlite3` 保存 SQLite 数据；新建目录为 0700、数据库为 0600，拒绝权限过宽或直接符号链接的数据路径。可用 `PANEL_DATA_DIR` 指定私有目录，初始化与运行必须使用同一目录。
-Cookie 默认使用 Secure、HttpOnly、SameSite=Strict；没有 TLS 的本机浏览器开发显式使用 `PANEL_DEV_HTTP=1`，不能通过转发端口公开该服务。完整配置与会话行为见 [运行说明](docs/operations.md)。
-
-## Agent 接入
-
-跨主机接入先按 [运行说明](docs/operations.md) 配置用户证书 HTTPS/WSS。在页面签发 enrollment 后，在目标机器以普通用户运行，按提示粘贴令牌：
+另一个终端启动 Vite：
 
 ```sh
-panel-agent --data-dir ./agent-data enroll --server wss://panel.example:8443/agent/v1/connect
-panel-agent --data-dir ./agent-data run
+pnpm --dir web run dev
 ```
 
-替换域名/端口；私有 CA 在两条命令中都添加 `--ca-cert /path/to/trusted-ca.pem`。每个节点使用独立目录，身份库包含凭据，目录/文件权限为 0700/0600；重启用同一目录，不复制到其他节点。
-本机明文开发在上述两条命令添加 `--allow-local-ws` 并使用 `ws://127.0.0.1:8080/agent/v1/connect`；Server 同时需要 `PANEL_DEV_HTTP=1`。没有跳过 TLS 证书验证的开关。
-Agent enroll/run 必须使用普通用户，root 会被拒绝。Linux 每 5 秒上报真实 CPU/内存/根盘/网络，非 Linux 明确显示不可用；“查询 Agent 服务”和“查询 Xray 服务”仅读取固定 `panel-agent.service`/`xray.service` 的状态，不启动或变更服务。任务有 60 秒截止时间和持久去重。完整协议与 interrupted 语义见 [接口契约](docs/protocol.md)。
-当前 wire 版本为 v6，Server/Agent 必须同步升级，保留各自私有数据目录。非 root systemd 模板和真实 Linux 验收方法见 [运行说明](docs/operations.md)。
-
-## 本地开发
-
-先执行一次前端构建，再分别启动 Rust 服务和 Vite：
+打开 <http://127.0.0.1:5173>。Vite 把 `/api` 和 Agent WebSocket 请求代理到本机 Server；浏览器 Origin 必须与 `PANEL_ORIGIN` 一致。Agent 本地开发需要显式启用 loopback 明文连接：
 
 ```sh
-cargo run --locked -p panel-server -- init-admin --username admin
-PANEL_DEV_HTTP=1 PANEL_ORIGIN=http://127.0.0.1:5173 cargo run --locked -p panel-server
-# 另一个终端
-cd web
-pnpm run dev
+./target/release/panel-agent --allow-local-ws --data-dir ./agent-data enroll --server ws://127.0.0.1:8080/agent/v1/connect
+./target/release/panel-agent --allow-local-ws --data-dir ./agent-data run
 ```
 
-访问 <http://127.0.0.1:5173>；`/api` 代理到 127.0.0.1:8080。`PANEL_ORIGIN` 必须与浏览器地址中的来源完全一致；若 Vite 改用了其他端口，相应修改此变量。已有管理员时跳过初始化命令。
-修改前端后，Vite 会热更新；要更新 Rust 内嵌页面，重新执行 `pnpm run build` 并重启 `cargo run`。
+测试时在第一个终端保持 Server 运行，使用独立终端执行 Agent 命令。不要把该开发 HTTP/WS 配置公开到网络。真实安装测试只在专用、没有既有 Panel 安装的 Linux VM 上运行。
 
-## 检查
+## 开发者：检查与测试
 
-`web/` 使用 Oxc 工具链：Oxfmt 负责格式化，Oxlint 负责 Lint（包括 Hooks、依赖数组和 React Refresh 检查）；Vite 8 使用 Oxc 转换 TS/JSX 并压缩 JavaScript。类型检查由 `tsc` 执行，测试使用 Vitest。
-
-以下脚本会安装锁文件依赖并执行格式检查、Lint、类型契约检查、测试、前后端构建及独立二进制冒烟检查，CI 使用相同命令：
+完整的格式、Lint、Rust/TypeScript 契约、类型检查、单元与集成测试、前后端构建及独立二进制冒烟检查：
 
 ```sh
 sh scripts/check.sh
 ```
 
-Linux/systemd 主机额外以普通用户运行 `python3 scripts/verify-linux.py`，验证真实指标、WSS、服务白名单和进程权限边界。
-
-各步骤的确切命令见 [scripts/check.sh](scripts/check.sh)。只修复格式：
+也可以单独运行前端和 Rust 检查：
 
 ```sh
-cargo fmt --all
-pnpm --dir web run format
-```
-
-`crates/common` 中的 Rust 类型是健康、认证、节点、指标、enrollment、任务和审计接口的类型来源。修改后执行：
-
-```sh
-pnpm --dir web run types
+pnpm --dir web run format:check
+pnpm --dir web run lint
 pnpm --dir web run types:check
+pnpm --dir web run typecheck
+pnpm --dir web test
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
 ```
 
-生成文件随代码提交，不手工修改；契约检查会拒绝过期的 TypeScript 类型。
+真实 Linux/systemd 指标和权限边界测试使用 Linux 普通用户运行：
 
-详见 [架构说明](docs/architecture.md)、[安全边界](docs/security.md)、[接口契约](docs/protocol.md) 和 [实施进度](docs/progress.md)。
+```sh
+python3 scripts/verify-linux.py --bin-dir target/release
+```
 
-签名发布验证见 [release.md](docs/release.md)，冷备份与恢复见 [backup-restore.md](docs/backup-restore.md)。正式发布结果和验收限制以 [进度记录](docs/progress.md) 为准。
+完整安装、升级失败回滚、备份恢复和公开 bootstrap 测试需要一个专用 root Linux VM：
+
+```sh
+sudo python3 scripts/verify-install.py --bundle ROOT_OWNED_BUNDLE --sha256 TRUSTED_BUNDLE_JSON_SHA256 --wizard --backup-restore
+sudo python3 scripts/verify-bootstrap.py --bundle ROOT_OWNED_BUNDLE --bootstrap scripts/bootstrap.sh --owned-vm
+```
+
+这两个验收脚本会创建并清理自己的测试安装，不能对现有生产服务器运行。真实浏览器 HTTPS E2E 由 CI 在上述专用 VM 上执行。安装流程、包制作和安全边界详见[运维](docs/operations.md)、[安全](docs/security.md)、[架构](docs/architecture.md)和[实施进度](docs/progress.md)。
