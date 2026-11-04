@@ -55,7 +55,6 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: rust-release-${{ matrix.target }}-1.96-${{ hashFiles('Cargo.lock') }}
       - name: Complete checks and native standalone smoke
         run: sh scripts/check.sh

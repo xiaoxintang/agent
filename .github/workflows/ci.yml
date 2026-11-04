@@ -24,7 +24,6 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: rust-ci-${{ runner.os }}-${{ runner.arch }}-1.96-${{ hashFiles('Cargo.lock') }}
       - name: Install pinned Rust toolchain
         run: rustup show active-toolchain
@@ -35,7 +34,6 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: rust-ci-${{ runner.os }}-${{ runner.arch }}-1.96-${{ hashFiles('Cargo.lock') }}
       - name: Real Linux metrics, systemd allowlist and privilege boundary
         run: python3 scripts/verify-linux.py
