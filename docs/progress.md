@@ -4,7 +4,7 @@
 
 日期：2026-11-04。状态：开始实施；Phase 7 已独立验收。
 
-初始检查：分 Phase 0–7 的代码已由 SSH 签名提交并推送至 xiaoxintang/agent；GitHub CLI 通过已有 Git HTTPS 凭据在子进程内认证，不持久化 token。macOS、真实 Ubuntu x86_64、Ubuntu ARM64 和 Debian ARM64 的本地验收通过，浏览器使用真实 Firefox 验收。正式 release 尚待标签变更后 CI 与签名发布验证。
+初始检查：Phase 0–7 代码已 SSH 签名推送至 xiaoxintang/agent；GitHub CLI 仅临时读取现有 HTTPS credential。工作区没有用户未提交修改，仓库默认分支 main。专用 SSH 标签签名密钥只存仓库外 0600 文件；本次发布使用独立 OIDC 短期身份签署资产。
 
 文件计划：复查私有文件/运行时边界与 systemd 硬化、备份恢复操作及验证、补 Debian/浏览器矩阵、CI/release 签名标签验证与 Linux 双架构打包/签名/发布工作流、发布校验文档与真实安装复验；更新本进度。签名私钥只在仓库外创建/保存，不复用用户 SSH 登录私钥，不引入生产额外服务。成功标准以规范 Phase 8 的真实 HTTPS、无默认凭据/通用执行、可验证签名、两架构实际安装为准；外部发布若受凭据/平台条件阻碍会如实保留未完成项。
 
@@ -14,7 +14,13 @@ Debian 13.7/aarch64/systemd 257 原生 HVF VM 已通过完整 TTY/HTTPS/权限/X
 
 浏览器：使用真实 Firefox 和独立 NSS 测试 CA 信任库验证 HTTPS，不使用 ignoreHTTPSErrors。已贯通实际登录、一次性令牌注册、Xray 卸载/安装、入站/客户端创建和关联、配置应用；发现页面嵌套表单共享 DOM id，已为每节点表单命名修正。最后流量读取改用同一浏览器的已验证 TLS fetch，避免 Node API context 不继承 NSS 根；最终真实 Firefox 全链路（HTTPS 登录→令牌注册→Xray 卸载/重装→入站/客户端/关联→配置应用→流量展示）exit 0，证书验证始终开启，NSS 仅信任本次独立测试 CA。验收错误输出曾包含一次性测试 Cookie，测试实例已 purge、会话已失效，已补通用敏感 header/密码/令牌输出脱敏。
 
-发布准备：独立项目标签签名 key 存在维护者仓库外 0700 目录，公钥/allowed-signers 在 deploy；不复用任何节点 SSH key。发布资产将由 GitHub OIDC 短期身份签署 SHA256SUMS Sigstore bundle。Actions 按用户要求使用最新正式版本标签（GitHub release API 核验），actionlint 通过。更新依赖版本后的 CI 正在重跑。已使用既有 Git HTTPS 凭据成功推送 SSH 签名初始提交 f197867，CI https://github.com/xiaoxintang/agent/actions/runs/41763638991 已真实执行，但在 hosted runner 的 /usr/local/bin 可被 runner 写入时正确拒绝不可信祖先。生产 Installer 已补提前拒绝；CI 仅在自身一次性 VM 收紧目录权限，修正后待重跑。当前尚未创建正式标签/公开 release，不能称为发布完成。
+发布准备：独立项目标签签名 key 存在维护者仓库外 0700 目录，公钥/allowed-signers 在 deploy；不复用任何节点 SSH key。发布资产将由 GitHub OIDC 短期身份签署 SHA256SUMS Sigstore bundle。Actions 按用户要求使用最新正式版本标签（GitHub release API 核验），actionlint 通过。更新依赖版本后的 CI 正在重跑。已使用既有 Git HTTPS 凭据成功推送 SSH 签名初始提交 f197867，CI https://github.com/xiaoxintang/agent/actions/runs/41763638991 已真实执行，但在 hosted runner 的 /usr/local/bin 可被 runner 写入时正确拒绝不可信祖先。生产 Installer 已补提前拒绝；CI 仅在自身一次性 VM 收紧目录权限，修正后待重跑。Phase 8 发布验收完成；Release v0.1.0 的源码、manifest/安装配置和签名资产均可按 docs/release.md 独立复验。后续产品更改需提升版本并签新的不可变标签。
+
+最终发布验收：Rust audit 0 vulnerability/0 warning；pnpm dev+prod audit 无已知漏洞；本机 fmt/Clippy/tests、Oxfmt/Oxlint/TS/build/smoke 全通过。Debian 13.7 ARM64 通过来源经认证的公开 Release `bootstrap.sh` 下载真实 GitHub v0.1.0 archive 并安装；健康 HTTP、管理员登录、Agent online、Xray 官方生命周期、VLESS+REALITY revision apply、StatsService 均真实运行成功。该一次性 Debian VM 在后续清理时系统性清除了下载 fixture，所以后端查询验证使用临时密码重置，未保留原首次初始化密码；真实安全对象/表未损坏。最后用固定 /tmp 系统级命令构建的 ARM64 installer 以 typed purge 移除了该专用安装和 Xray，确认原有 services/data 之外无 Panel/Xray 安装文件、数据或凭据残留。
+
+容器/VM test fixtures 中保留 QEMU 原生 HVF Ubuntu ARM64 与 Debian ARM64，仅为可复验资产，不随本次仓库发布。正式 SSH tag 私钥和短期 Git credential 从未进入仓库/资产；标签公钥随 release 发布。没有提交 signing 私钥或声明可复现构建。
+
+遗留边界：v0.1.0 已发布，版本化 Release assets 当前有效；后续改动需提升 workspace 版本、重新验收并签新 tag，不能覆盖现有不可变 release。真实公开 bootstrap 已在专用 Debian 主机验证成功；本地替身分发验证仅作为补充。后续若有源码修复或依赖更新须按新版本发布，不对已签 v0.1.0 资产原位修改。当前工作树仅有下面记录的未跟踪差异时先检查；没有未解决产品功能门槛。
 
 ## Phase 7 — Interactive installer
 
