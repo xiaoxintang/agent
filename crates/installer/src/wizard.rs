@@ -7,7 +7,10 @@ use std::{io::IsTerminal, path::PathBuf};
 
 pub fn install(args: &mut InstallArgs) -> Result<Input> {
     if !std::io::stdin().is_terminal() {
-        return Err("Interactive install requires a TTY; use --non-interactive --config FILE --bundle DIR".into());
+        return Err(
+            "Interactive install requires a TTY; use --non-interactive --config FILE --bundle DIR"
+                .into(),
+        );
     }
     let component = Select::new()
         .with_prompt("Component")
