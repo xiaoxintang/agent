@@ -103,7 +103,7 @@ it("submits a constrained status task and displays its actual result", async () 
                 status: "succeeded",
                 result: {
                   status: "succeeded",
-                  data: { version: "0.1.0", os: "linux", arch: "aarch64" },
+                  data: { version: "test-version", os: "linux", arch: "aarch64" },
                 },
               }
             : pending,
@@ -115,7 +115,7 @@ it("submits a constrained status task and displays its actual result", async () 
   const client = mount();
   fireEvent.click(screen.getByRole("button", { name: "查询 Agent 状态" }));
   expect(
-    await screen.findByText(/查询成功.*0\.1\.0.*linux.*aarch64/),
+    await screen.findByText(/查询成功.*test-version.*linux.*aarch64/),
   ).toBeTruthy();
   const input = JSON.parse(
     (fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,

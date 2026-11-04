@@ -6,13 +6,13 @@ describe("health contract", () => {
     const fetch = vi
       .fn()
       .mockResolvedValue(
-        new Response(JSON.stringify({ status: "ok", version: "0.1.0" })),
+        new Response(JSON.stringify({ status: "ok", version: "test-version" })),
       );
     vi.stubGlobal("fetch", fetch);
     const signal = new AbortController().signal;
     await expect(fetchHealth(signal)).resolves.toEqual({
       status: "ok",
-      version: "0.1.0",
+      version: "test-version",
     });
     expect(fetch).toHaveBeenCalledWith("/api/v1/health", {
       signal,

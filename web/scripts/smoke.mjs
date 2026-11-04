@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { copyFile, mkdtemp, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 // Run copied release binaries outside the checkout, with no executable search path.
 const root = fileURLToPath(new URL("../../", import.meta.url));
+const workspace = await readFile(join(root, "Cargo.toml"), "utf8");
+const version = workspace.match(/^version = "([^"]+)"/m)?.[1];
+assert.ok(version, "Workspace version is missing");
 const directory = await mkdtemp(join(tmpdir(), "panel-smoke-"));
 const env = {
   ...process.env,
@@ -40,12 +43,15 @@ try {
   for (const name of ["panel-server", "panel-agent", "panel-installer"]) {
     await copyFile(join(root, "target/release", name), join(directory, name));
   }
-  assert.match(cli("panel-agent", []), /^panel-agent 0\.1\.0\s*$/);
-  assert.match(cli("panel-agent", ["--version"]), /panel-agent 0\.1\.0/);
+  assert.equal(cli("panel-agent", []).trim(), `panel-agent ${version}`);
+  assert.equal(
+    cli("panel-agent", ["--version"]).trim(),
+    `panel-agent ${version}`,
+  );
   assert.match(cli("panel-installer", ["--help"]), /Usage:/);
-  assert.match(
-    cli("panel-installer", ["--version"]),
-    /panel-installer 0\.1\.0/,
+  assert.equal(
+    cli("panel-installer", ["--version"]).trim(),
+    `panel-installer ${version}`,
   );
   assert.match(
     cli("panel-installer", ["install"], 1),
@@ -98,7 +104,7 @@ try {
     fetch(`${base}${path}`, { signal: AbortSignal.timeout(5000) });
   const health = await get("/api/v1/health");
   assert.equal(health.status, 200);
-  assert.deepEqual(await health.json(), { status: "ok", version: "0.1.0" });
+  assert.deepEqual(await health.json(), { status: "ok", version });
   const index = await get("/");
   assert.equal(index.status, 200);
   assert.equal(index.headers.get("cache-control"), "no-cache");
