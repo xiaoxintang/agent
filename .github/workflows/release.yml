@@ -15,7 +15,7 @@ jobs:
   verify-tag:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -41,16 +41,16 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 22.23.2
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
+      - uses: pnpm/action-setup@v6.1.1
         with:
           package_json_file: web/package.json
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+      - uses: actions/cache@v6.1.0
         with:
           path: |
             ~/.cargo/registry
@@ -106,7 +106,7 @@ jobs:
           sudo chmod 700 "$panel_test_dir"
           sudo python3 scripts/verify-install.py --bundle "$panel_test_dir/bundle" --sha256 "$panel_hash" --failure-bundle "$panel_test_dir/failure" --failure-sha256 "$panel_failure_hash" --wizard --backup-restore
           sudo python3 scripts/verify-bootstrap.py --bundle "$panel_test_dir/bundle" --bootstrap "$PWD/scripts/bootstrap.sh" --owned-vm
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: linux-${{ matrix.arch }}
           path: dist/*.tar.gz
@@ -120,15 +120,15 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      - uses: actions/download-artifact@v8.0.2
         with:
           pattern: linux-*
           path: dist
           merge-multiple: true
-      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac
+      - uses: sigstore/cosign-installer@v4.1.2
         with:
           cosign-release: v3.1.4
       - name: Sign authenticated checksum manifest with GitHub OIDC
