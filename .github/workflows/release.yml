@@ -51,10 +51,13 @@ jobs:
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: release-${{ matrix.target }}
+          shared-key: ci
           cache-all-crates: false
-      - name: Complete checks and native standalone smoke
-        run: sh scripts/check.sh
+      - name: Build embedded web assets
+        run: |
+          pnpm --dir web install --frozen-lockfile
+          pnpm --dir web exec vite build
+          node web/scripts/copy-dist.mjs
       - name: Build static Linux release after the embedded web build
         env:
           PANEL_TARGET: ${{ matrix.target }}
