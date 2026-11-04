@@ -3,7 +3,7 @@
 轻量化、自托管 Linux 多节点管理面板。架构与分阶段验收标准以
 [ARCHITECTURE_PLAN.md](ARCHITECTURE_PLAN.md) 为准。
 
-当前推进到 **Phase 7**：认证/WSS/Linux 指标、受管 Xray 生命周期、VLESS+REALITY 入站/客户端与原子配置修订，以及真实 StatsService 流量、小时图表和最终一致配额/到期策略。Agent 保持非 root，通过固定 socket 的短生命周期 helper 操作 Xray；已实现独立安装器；正式签名发布继续在 Phase 8 验收。
+当前推进到 **Phase 8**：认证/WSS/Linux 指标、受管 Xray 生命周期、VLESS+REALITY 入站/客户端与原子配置修订，以及真实 StatsService 流量、小时图表和最终一致配额/到期策略。Agent 保持非 root，通过固定 socket 的短生命周期 helper 操作 Xray；已实现独立安装器；正式签名发布继续在 Phase 8 验收。
 
 ## 环境
 
@@ -103,3 +103,5 @@ pnpm --dir web run types:check
 生成文件随代码提交，不手工修改；契约检查会拒绝过期的 TypeScript 类型。
 
 详见 [架构说明](docs/architecture.md)、[安全边界](docs/security.md)、[接口契约](docs/protocol.md) 和 [实施进度](docs/progress.md)。
+
+签名发布验证见 [release.md](docs/release.md)，冷备份与恢复见 [backup-restore.md](docs/backup-restore.md)。正式发布结果和验收限制以 [进度记录](docs/progress.md) 为准。

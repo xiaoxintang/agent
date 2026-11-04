@@ -12,7 +12,7 @@
 
 Debian 13.7/aarch64/systemd 257 原生 HVF VM 已通过完整 TTY/HTTPS/权限/Xray/Stats/故障回滚/升级/修复/卸载/注册/purge，以及冷 SQLite 备份→注入业务变更→恢复→撤销旧会话和节点凭据→重新注册。镜像经 Debian HTTPS SHA512SUMS 核对，实测 SHA-512 为 5d3ecec46fd29605db4084388a1e2eb82fd19a80202898f962840ea73793261de721e505e3877c829ae86c37fdd2f6c205b0b3b1337a89d0d4b98d9081adc0c2；不声称额外 GPG 验证。
 
-浏览器：使用真实 Firefox 和独立 NSS 测试 CA 信任库验证 HTTPS，不使用 ignoreHTTPSErrors。已贯通实际登录、一次性令牌注册、Xray 卸载/安装、入站/客户端创建和关联、配置应用；发现页面嵌套表单共享 DOM id，已为每节点表单命名修正。最后流量读取改用同一浏览器的已验证 TLS fetch，避免 Node API context 不继承 NSS 根；完整最终结果仍在复验。验收错误输出曾包含一次性测试 Cookie，测试实例已 purge、会话已失效，已补通用敏感 header/密码/令牌输出脱敏。
+浏览器：使用真实 Firefox 和独立 NSS 测试 CA 信任库验证 HTTPS，不使用 ignoreHTTPSErrors。已贯通实际登录、一次性令牌注册、Xray 卸载/安装、入站/客户端创建和关联、配置应用；发现页面嵌套表单共享 DOM id，已为每节点表单命名修正。最后流量读取改用同一浏览器的已验证 TLS fetch，避免 Node API context 不继承 NSS 根；最终真实 Firefox 全链路（HTTPS 登录→令牌注册→Xray 卸载/重装→入站/客户端/关联→配置应用→流量展示）exit 0，证书验证始终开启，NSS 仅信任本次独立测试 CA。验收错误输出曾包含一次性测试 Cookie，测试实例已 purge、会话已失效，已补通用敏感 header/密码/令牌输出脱敏。
 
 发布准备：独立项目标签签名 key 存在维护者仓库外 0700 目录，公钥/allowed-signers 在 deploy；不复用任何节点 SSH key。发布资产将由 GitHub OIDC 短期身份签署 SHA256SUMS Sigstore bundle。Actions 全部固定实际 commit SHA；actionlint 通过。已使用既有 Git HTTPS 凭据成功推送 SSH 签名初始提交 f197867，CI https://github.com/xiaoxintang/agent/actions/runs/41763638991 已真实执行，但在 hosted runner 的 /usr/local/bin 可被 runner 写入时正确拒绝不可信祖先。生产 Installer 已补提前拒绝；CI 仅在自身一次性 VM 收紧目录权限，修正后待重跑。当前尚未创建正式标签/公开 release，不能称为发布完成。
 

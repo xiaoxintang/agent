@@ -1181,6 +1181,9 @@ pub async fn install(mut input: Input, component: Component, bundle: Bundle) -> 
     verify_files(&state)?;
     check_destinations(&state)?;
     foreign_units(&state, component).await?;
+    if component.agent() {
+        lifecycle::Layout::production().validate().map_err(io)?;
+    }
     cache(&bundle).await?;
     store(&state)?;
     checkpoint(&state, component).await?;

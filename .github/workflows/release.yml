@@ -100,8 +100,8 @@ jobs:
           tar -C "$panel_test_dir/bundle" -czf "dist/panel-linux-$PANEL_ARCH-$GITHUB_REF_NAME.tar.gz" bundle.json panel-agent panel-installer panel-server
           # Hosted runners grant the runner write access here; the disposable test
           # VM must enforce the same root-owned ancestors required in production.
-          sudo chown root:root /usr/local /usr/local/bin
-          sudo chmod go-w /usr/local /usr/local/bin
+          sudo chown root:root /usr/local /usr/local/bin /opt /var/lib /etc/systemd /etc/systemd/system
+          sudo chmod go-w /usr/local /usr/local/bin /opt /var/lib /etc/systemd /etc/systemd/system
           sudo chown -R root:root "$panel_test_dir"
           sudo chmod 700 "$panel_test_dir"
           sudo python3 scripts/verify-install.py --bundle "$panel_test_dir/bundle" --sha256 "$panel_hash" --failure-bundle "$panel_test_dir/failure" --failure-sha256 "$panel_failure_hash" --wizard --backup-restore
