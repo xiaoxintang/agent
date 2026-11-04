@@ -129,7 +129,7 @@ jobs:
           merge-multiple: true
       - uses: sigstore/cosign-installer@v4.1.2
         with:
-          cosign-release: v4.1.2
+          cosign-release: v3.1.4
       - name: Sign authenticated checksum manifest with GitHub OIDC
         shell: bash
         run: |
