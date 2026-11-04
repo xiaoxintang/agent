@@ -1,6 +1,6 @@
 # 发布与验证
 
-正式发布只由稳定版本标签触发。标签必须是项目专用 SSH 密钥签名的 annotated tag；CI 使用 `deploy/release-allowed-signers` 验证。公钥为 `deploy/release-tag-key.pub`，与节点 SSH 登录密钥无关。签名私钥保存在维护者机器的仓库外私有目录，不能提交到 Git、artifact 或 CI secret 日志中。
+正式发布只由 `v数字.数字.数字` 格式的稳定版本标签触发，不要求标签签名。发布权限应通过仓库权限和标签保护规则控制。
 
 发布工作流先校验标签，再在原生 Ubuntu x86_64/aarch64 runner 上构建 web、执行完整检查、构建静态 musl ELF，执行真实 TTY/systemd/Xray/故障回滚/分发验证。生产压缩包只包含 bundle.json 和三个二进制，模板/引导脚本另作 release assets；运行不需要 Node 或编译工具。
 
@@ -28,11 +28,10 @@ sudo sh bootstrap.sh
 
 引导程序固定 release 版本、GitHub HTTPS 来源、下载大小和路径白名单；不执行下载流，不使用 curl|sh，保留 TTY 给 Installer。非交互配置应是 root-owned 0600 JSON，使用 `--non-interactive --config /root/panel-install.json`。单独调用 Installer 时可以提供 `--bundle-sha256` 对元数据做额外校验。
 
-维护发布时先修改 Cargo workspace 版本，完整验收并提交，确认私钥在仓库外后签署版本标签。使用当前专用项目密钥的本地命令（路径指向维护者私有目录，不是节点 SSH key）：
+维护发布时先修改 Cargo workspace 版本，完整验收并提交，然后创建并推送版本标签：
 
 ```sh
-git -c gpg.format=ssh -c user.signingkey=/PRIVATE/PATH/tag-signing-key tag -s v0.1.0 -m 'Linux Panel v0.1.0'
-git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile=deploy/release-allowed-signers verify-tag v0.1.0
+git tag v0.1.0
 git push origin main v0.1.0
 ```
 

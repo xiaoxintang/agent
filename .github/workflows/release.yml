@@ -15,16 +15,11 @@ jobs:
   verify-tag:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Verify the project SSH-signed stable version tag
+      - name: Verify stable version tag format
         shell: bash
         run: |
           set -euo pipefail
           [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile=deploy/release-allowed-signers verify-tag "$GITHUB_REF_NAME"
 
   build:
     needs: verify-tag
@@ -139,7 +134,6 @@ jobs:
           set -euo pipefail
           sed "s/__PANEL_VERSION__/$GITHUB_REF_NAME/" scripts/bootstrap.sh > dist/bootstrap.sh
           cp deploy/systemd/*.service deploy/systemd/*.socket dist/
-          cp deploy/release-tag-key.pub dist/
           cp docs/release.md dist/VERIFICATION.md
           (cd dist && sha256sum ./* > SHA256SUMS)
           cosign sign-blob --yes --bundle dist/SHA256SUMS.sigstore.json dist/SHA256SUMS
