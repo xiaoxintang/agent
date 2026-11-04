@@ -1424,7 +1424,7 @@ dependencies = [
 
 [[package]]
 name = "panel-agent"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap",
  "futures-util",
@@ -1448,7 +1448,7 @@ dependencies = [
 
 [[package]]
 name = "panel-common"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "hex",
@@ -1466,7 +1466,7 @@ dependencies = [
 
 [[package]]
 name = "panel-installer"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap",
  "dialoguer",
@@ -1486,7 +1486,7 @@ dependencies = [
 
 [[package]]
 name = "panel-server"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "argon2",
  "axum",
