@@ -34,39 +34,6 @@ fn http_origin_from(
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{http_origin_default, http_origin_from};
-
-    #[test]
-    fn http_default_uses_explicit_ipv4_and_port() {
-        assert_eq!(
-            http_origin_default("192.168.1.5:8080".parse().unwrap()).as_deref(),
-            Some("http://192.168.1.5:8080")
-        );
-        assert_eq!(
-            http_origin_default("192.168.1.5:80".parse().unwrap()).as_deref(),
-            Some("http://192.168.1.5")
-        );
-        assert!(http_origin_default("[::1]:8080".parse().unwrap()).is_none());
-        assert_eq!(
-            http_origin_from("0.0.0.0:8080".parse().unwrap(), || Some(
-                "192.168.1.7".parse().unwrap()
-            ))
-            .as_deref(),
-            Some("http://192.168.1.7:8080")
-        );
-        assert!(http_origin_from("0.0.0.0:8080".parse().unwrap(), || None).is_none());
-        assert_eq!(
-            http_origin_from("[::]:8080".parse().unwrap(), || Some(
-                "192.168.1.7".parse().unwrap()
-            ))
-            .as_deref(),
-            Some("http://192.168.1.7:8080")
-        );
-    }
-}
-
 pub fn install(args: &mut InstallArgs) -> Result<Input> {
     if !std::io::stdin().is_terminal() {
         return Err(
@@ -255,4 +222,37 @@ pub fn confirm_plan(component: Component, settings: &Settings) -> Result<()> {
         return Err("Installation canceled".into());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{http_origin_default, http_origin_from};
+
+    #[test]
+    fn http_default_uses_explicit_ipv4_and_port() {
+        assert_eq!(
+            http_origin_default("192.168.1.5:8080".parse().unwrap()).as_deref(),
+            Some("http://192.168.1.5:8080")
+        );
+        assert_eq!(
+            http_origin_default("192.168.1.5:80".parse().unwrap()).as_deref(),
+            Some("http://192.168.1.5")
+        );
+        assert!(http_origin_default("[::1]:8080".parse().unwrap()).is_none());
+        assert_eq!(
+            http_origin_from("0.0.0.0:8080".parse().unwrap(), || Some(
+                "192.168.1.7".parse().unwrap()
+            ))
+            .as_deref(),
+            Some("http://192.168.1.7:8080")
+        );
+        assert!(http_origin_from("0.0.0.0:8080".parse().unwrap(), || None).is_none());
+        assert_eq!(
+            http_origin_from("[::]:8080".parse().unwrap(), || Some(
+                "192.168.1.7".parse().unwrap()
+            ))
+            .as_deref(),
+            Some("http://192.168.1.7:8080")
+        );
+    }
 }
