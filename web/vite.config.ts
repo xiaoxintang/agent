@@ -12,6 +12,11 @@ export default defineConfig({
   },
   build: {
     sourcemap: false,
+    rolldownOptions:{
+      output:{
+        codeSplitting:true
+      }
+    }
   },
   test: {
     environment: "jsdom",
