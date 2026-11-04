@@ -174,8 +174,8 @@ pub fn validate(settings: &Settings, component: Component) -> Result<()> {
             return Err("Invalid server origin".into());
         }
         if settings.local_http {
-            if !bind.ip().is_loopback()
-                || origin.scheme() != "http"
+            if origin.scheme() != "http"
+                || origin.origin().ascii_serialization() != settings.server_origin
                 || origin
                     .host_str()
                     .and_then(|host| {
@@ -183,12 +183,13 @@ pub fn validate(settings: &Settings, component: Component) -> Result<()> {
                             .parse::<std::net::IpAddr>()
                             .ok()
                     })
-                    .is_none_or(|ip| !ip.is_loopback())
+                    .is_none_or(|ip| ip.is_unspecified())
+                || (component.agent() && !bind.ip().is_loopback() && !bind.ip().is_unspecified())
                 || settings.tls_key.is_some()
                 || settings.tls_cert.is_some()
                 || settings.acme_domain.is_some()
             {
-                return Err("Plain HTTP must be explicitly local-only, without TLS paths".into());
+                return Err("HTTP requires an IP origin without TLS paths; Server + Agent must bind to loopback or all interfaces".into());
             }
         } else {
             let manual = settings.tls_key.is_some()
@@ -743,9 +744,8 @@ async fn request(
     url: &str,
     body: serde_json::Value,
     session: Option<(&str, &str)>,
+    origin: &str,
 ) -> Result<(reqwest::header::HeaderMap, serde_json::Value)> {
-    let parsed = url::Url::parse(url)?;
-    let origin = parsed.origin().ascii_serialization();
     let mut request = client
         .request(method, url)
         .header("Origin", origin)
@@ -769,6 +769,17 @@ async fn request(
         bytes.extend_from_slice(&chunk);
     }
     Ok((headers, serde_json::from_slice(&bytes)?))
+}
+pub(crate) fn local_http_origin(settings: &Settings) -> Result<String> {
+    let mut address: std::net::SocketAddr = settings.server_bind.parse()?;
+    if address.ip().is_unspecified() {
+        address.set_ip(if address.is_ipv4() {
+            std::net::Ipv4Addr::LOCALHOST.into()
+        } else {
+            std::net::Ipv6Addr::LOCALHOST.into()
+        });
+    }
+    Ok(format!("http://{address}"))
 }
 async fn client(settings: &Settings) -> Result<reqwest::Client> {
     let mut builder = reqwest::Client::builder()
@@ -799,12 +810,18 @@ async fn enrollment(state: &Manifest, input: &Input) -> Result<String> {
         .ok_or("Local automatic enrollment requires the administrator password")?;
     let client = client(&state.settings).await?;
     let origin = &state.settings.server_origin;
+    let endpoint = if state.settings.local_http {
+        local_http_origin(&state.settings)?
+    } else {
+        origin.clone()
+    };
     let (headers, session) = request(
         &client,
         reqwest::Method::POST,
-        &format!("{origin}/api/v1/auth/login"),
+        &format!("{endpoint}/api/v1/auth/login"),
         serde_json::json!({"username":state.settings.admin_username,"password":password}),
         None,
+        origin,
     )
     .await?;
     let cookie = headers
@@ -818,21 +835,23 @@ async fn enrollment(state: &Manifest, input: &Input) -> Result<String> {
     let (_, node) = request(
         &client,
         reqwest::Method::POST,
-        &format!("{origin}/api/v1/nodes"),
+        &format!("{endpoint}/api/v1/nodes"),
         serde_json::json!({"name":state.settings.agent_name}),
         Some((cookie, csrf)),
+        origin,
     )
     .await?;
     let (_, token) = request(
         &client,
         reqwest::Method::POST,
-        &format!("{origin}/api/v1/nodes/enrollments"),
+        &format!("{endpoint}/api/v1/nodes/enrollments"),
         serde_json::json!({"node_id":node["id"]}),
         Some((cookie, csrf)),
+        origin,
     )
     .await?;
     let _ = client
-        .post(format!("{origin}/api/v1/auth/logout"))
+        .post(format!("{endpoint}/api/v1/auth/logout"))
         .header("Origin", origin)
         .header("Cookie", cookie)
         .header("X-CSRF-Token", csrf)
@@ -899,11 +918,13 @@ async fn health(state: &Manifest, component: Component) -> Result<()> {
             } else {
                 10
             });
+        let endpoint = if state.settings.local_http {
+            local_http_origin(&state.settings)?
+        } else {
+            state.settings.server_origin.clone()
+        };
         loop {
-            let response = client
-                .get(format!("{}/api/v1/health", state.settings.server_origin))
-                .send()
-                .await;
+            let response = client.get(format!("{endpoint}/api/v1/health")).send().await;
             if response.is_ok_and(|response| response.status().is_success()) {
                 break;
             }
@@ -1002,7 +1023,7 @@ async fn activate(
             saved.server_origin,
             saved.server_data.display(),
             if saved.local_http {
-                "PANEL_DEV_HTTP=1\n"
+                "PANEL_PUBLIC_HTTP=1\n"
             } else {
                 ""
             }
@@ -1730,11 +1751,26 @@ fn purge_control() -> Result<()> {
 mod tests {
     use super::*;
     #[test]
-    fn deployment_rejects_public_http_injection_traversal_and_root_data_paths() {
+    fn deployment_validates_http_injection_traversal_and_root_data_paths() {
         let mut settings = Settings::default();
         assert!(validate(&settings, Component::All).is_ok());
         settings.server_bind = "0.0.0.0:8080".into();
+        settings.server_origin = "http://203.0.113.10:8080".into();
+        assert!(validate(&settings, Component::All).is_ok());
+        assert_eq!(
+            local_http_origin(&settings).unwrap(),
+            "http://127.0.0.1:8080"
+        );
+        settings.server_origin = "http://0.0.0.0:8080".into();
         assert!(validate(&settings, Component::Server).is_err());
+        settings.server_origin = "http://example.com:8080".into();
+        assert!(validate(&settings, Component::Server).is_err());
+        settings.server_origin = "http://203.0.113.10:80".into();
+        assert!(validate(&settings, Component::Server).is_err());
+        settings.server_origin = "http://203.0.113.10:8080".into();
+        settings.server_bind = "192.168.1.2:8080".into();
+        assert!(validate(&settings, Component::Server).is_ok());
+        assert!(validate(&settings, Component::All).is_err());
         settings = Settings::default();
         settings.server_origin = "http://127.0.0.1:8080\n".into();
         assert!(validate(&settings, Component::Server).is_err());

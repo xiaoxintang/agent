@@ -98,7 +98,7 @@ def wizard_install(settings, cert, key, authority):
     steps = [
         ("Component", "\r"),
         ("Setup mode", "\x1b[B\r"),
-        ("Use local-only development HTTP?", "n"),
+        ("Enable HTTPS?", "y"),
         ("Server bind IP:port", settings["server_bind"] + "\r"),
         ("Exact browser origin", settings["server_origin"] + "\r"),
         ("Automatically obtain and renew", "n"),

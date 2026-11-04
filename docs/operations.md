@@ -128,6 +128,8 @@ Agent 每 15 秒采样，以固定 `xray.service` 的 systemd InvocationID 标�
 
 支持 Debian/Ubuntu、systemd ≥249、Linux x86_64/aarch64。生产只运行 Rust Server/Agent、独立 Xray 和按连接激活的短期 helper；不需要 Node、数据库服务或反向代理。需要 root 的是非驻留 Installer，长期 Server/Agent 始终是专用非 root 账号。
 
+安装向导先选择组件：`Server + Agent` 同机安装面板与节点，`Server` 仅安装面板，`Agent` 仅安装节点并连接已有面板。接着选择配置模式：`Quick` 使用默认数据目录并启用开机启动；`Custom` 允许调整数据目录和开机启动。两种模式都需要配置连接和管理员信息。选择不启用 HTTPS 时可通过 IP 地址使用 HTTP 访问，需填写浏览器实际访问的完整 IP 和端口；密码、会话和传输数据均可能被窃听。同机 Agent 使用 loopback WS，远程 Agent 仍须使用 WSS。
+
 先取得经可信发布渠道验证的 bundle。`scripts/package.py` 只打包已有 Linux ELF，不自动构建；`bundle.json` 固定版本、架构和三个二进制摘要。Installer 的 `--bundle-sha256` 是**元数据文件**摘要，必须从已经认证的发布/交付渠道取得；bootstrap 的 `--sha256` 则是**整个压缩包**摘要，两者不可混用。不能把同一不可信下载旁的 checksum 当作独立信任锚。
 
 ```sh
@@ -158,7 +160,7 @@ sudo panel-installer repair --component all
 }
 ```
 
-首次 Server 安装必须在该私有文件填写自己的 12–128 字节密码，或改用 TTY 隐藏输入；`null` 没有默认密码含义，会被拒绝。Agent-only 首次接入需要面板的一次性 enrollment token；all 安装可以使用内存中的管理员密码通过本机真实 HTTPS API 创建节点/令牌并注册，随后注销设置会话。私有 CA 可显式设置 `agent_ca`；不跳过 TLS 验证。仅本机开发允许明确设置 `local_http:true`、字面 loopback HTTP/WS。服务端数据默认 `/var/lib/panel/server`，可在首次安装选择 `/var/lib/panel/` 下的一个其他直接子目录（排除 agent），此后不通过安装器迁移数据路径。
+首次 Server 安装必须在该私有文件填写自己的 12–128 字节密码，或改用 TTY 隐藏输入；`null` 没有默认密码含义，会被拒绝。Agent-only 首次接入需要面板的一次性 enrollment token；all 安装可以使用内存中的管理员密码通过 Server API 创建节点/令牌并注册，随后注销设置会话。私有 CA 可显式设置 `agent_ca`；不跳过 TLS 验证。设置 `local_http:true` 可启用明文 HTTP，Origin 必须是实际访问的 IP；同机 Agent 仍仅允许字面 loopback WS，Server + Agent 须监听 loopback 或所有接口。服务端数据默认 `/var/lib/panel/server`，可在首次安装选择 `/var/lib/panel/` 下的一个其他直接子目录（排除 agent），此后不通过安装器迁移数据路径。
 
 ```sh
 sudo ./panel-installer install --component all --non-interactive --config /root/panel-install.json --bundle /root/panel-bundle --bundle-sha256 TRUSTED_BUNDLE_JSON_SHA256

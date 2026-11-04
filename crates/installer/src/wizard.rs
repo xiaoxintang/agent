@@ -25,8 +25,8 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
     let custom = Select::new()
         .with_prompt("Setup mode")
         .items([
-            "Quick: fixed private paths",
-            "Custom: bind/TLS/data and startup",
+            "Quick: default data path and automatic startup",
+            "Custom: choose data path and startup",
         ])
         .default(0)
         .interact()?
@@ -35,17 +35,15 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
     let mut password = None;
     let mut token = None;
     if args.component.server() {
-        settings.local_http = Confirm::new()
-            .with_prompt(
-                "Use local-only development HTTP? Public HTTPS uses automatic certificates",
-            )
-            .default(false)
+        settings.local_http = !Confirm::new()
+            .with_prompt("Enable HTTPS? No allows unencrypted IP access (passwords and sessions can be intercepted)")
+            .default(true)
             .interact()?;
         settings.server_bind = Prompt::new()
             .with_prompt("Server bind IP:port")
             .default(
                 if settings.local_http {
-                    "127.0.0.1:8080"
+                    "0.0.0.0:8080"
                 } else {
                     "0.0.0.0:8443"
                 }
@@ -53,21 +51,23 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
             )
             .interact_text()?;
         let server_port = settings.server_bind.parse::<std::net::SocketAddr>()?.port();
-        let default_origin = if settings.local_http {
-            if server_port == 80 {
-                "http://127.0.0.1".into()
-            } else {
-                format!("http://127.0.0.1:{server_port}")
-            }
-        } else if server_port == 443 {
+        let default_origin = if server_port == 443 {
             "https://panel.example".into()
         } else {
             format!("https://panel.example:{server_port}")
         };
-        settings.server_origin = Prompt::new()
-            .with_prompt("Exact browser origin (no trailing slash)")
-            .default(default_origin)
-            .interact_text()?;
+        settings.server_origin = if settings.local_http {
+            Prompt::new()
+                .with_prompt(
+                    "Browser HTTP origin with server IP and port (e.g. http://203.0.113.10:8080)",
+                )
+                .interact_text()?
+        } else {
+            Prompt::new()
+                .with_prompt("Exact browser origin (no trailing slash)")
+                .default(default_origin)
+                .interact_text()?
+        };
         if !settings.local_http {
             if Confirm::new()
                 .with_prompt("Automatically obtain and renew a Let's Encrypt certificate?")
@@ -134,15 +134,21 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
         } else {
             settings.agent_server = format!(
                 "{}/agent/v1/connect",
-                settings.server_origin.replacen("http", "ws", 1)
+                if settings.local_http {
+                    crate::deployment::local_http_origin(&settings)?.replacen("http", "ws", 1)
+                } else {
+                    settings.server_origin.replacen("http", "ws", 1)
+                }
             );
         }
-        let ca: String = Prompt::new()
-            .with_prompt("Additional trusted CA PEM path (empty for public CA)")
-            .allow_empty(true)
-            .interact_text()?;
-        if !ca.is_empty() {
-            settings.agent_ca = Some(ca.into());
+        if args.component == Component::Agent || !settings.local_http {
+            let ca: String = Prompt::new()
+                .with_prompt("Additional trusted CA PEM path (empty for public CA)")
+                .allow_empty(true)
+                .interact_text()?;
+            if !ca.is_empty() {
+                settings.agent_ca = Some(ca.into());
+            }
         }
         settings.install_xray = Confirm::new()
             .with_prompt("Install verified Xray 26.10.31 with no business listening ports?")
