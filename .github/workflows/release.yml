@@ -130,7 +130,7 @@ jobs:
           merge-multiple: true
       - uses: sigstore/cosign-installer@v4.1.2
         with:
-          cosign-release: v3.1.4
+          cosign-release: v4.1.2
       - name: Sign authenticated checksum manifest with GitHub OIDC
         shell: bash
         run: |
@@ -141,7 +141,7 @@ jobs:
           cp docs/release.md dist/VERIFICATION.md
           (cd dist && sha256sum ./* > SHA256SUMS)
           cosign sign-blob --yes --bundle dist/SHA256SUMS.sigstore.json dist/SHA256SUMS
-          cosign verify-blob --bundle dist/SHA256SUMS.sigstore.json --certificate-identity "https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/$GITHUB_REF_NAME" --certificate-oidc-issuer https://token.actions.githubusercontent.com dist/SHA256SUMS
+          cosign verify-blob --bundle dist/SHA256SUMS.sigstore.json --certificate-identity-regexp "^https://github\.com/xiaoxintang/agent/\.github/workflows/release\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$" --certificate-oidc-issuer https://token.actions.githubusercontent.com dist/SHA256SUMS
       - name: Publish verified release assets
         env:
           GH_TOKEN: ${{ github.token }}
