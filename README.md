@@ -10,7 +10,7 @@
 - Rust 1.96.0（Rust 2024）；建议通过 rustup 安装，`rust-toolchain.toml` 锁定工具链并包含 rustfmt、Clippy。
 - Node.js 22.23.2、pnpm 12.16.1（开发和构建使用）；`web/package.json` 的 `packageManager` 固定 pnpm 版本，其他 Node 版本范围见同文件。pnpm 安装方式见[官方说明](https://pnpm.io/installation)。
 - 首次安装依赖需要访问 npm 和 crates.io。
-- 本地支持 macOS/Linux；已在真实 Ubuntu 24.04 x86_64/systemd 节点通过 Phase 3 验收，并配置 Ubuntu CI。构建 bundled SQLite 需要 C 编译器（macOS Command Line Tools 或 Linux C 工具链）。Linux x86_64/aarch64 已执行真实 systemd 安装维护验收；正式签名发布留到 Phase 8。
+- 本地支持 macOS/Linux；已在 Ubuntu 24.04 x86_64/ARM64 与 Debian 13 ARM64/systemd 完成真实安装、维护验收。Rust/Pnpm 检查和带 OIDC Sigstore 签名的 Linux x86_64/aarch64 Release 已公开发布。
 
 ## 从干净检出构建
 
