@@ -4,7 +4,7 @@
 
 日期：2026-11-04。状态：开始实施；Phase 7 已独立验收。
 
-初始检查：全部代码仍未提交，origin=xiaoxintang/agent；macOS 本机完整检查通过，真实 Ubuntu x86_64 与原生 ARM64 VM 安装维护/故障回滚/TTY/分发校验通过。GitHub CLI 未登录，Git HTTPS 已配置凭据助手，公开仓库尚无提交；不会把未完成的 CI/发布说成成功。
+初始检查：分 Phase 0–7 的代码已由 SSH 签名提交并推送至 xiaoxintang/agent；GitHub CLI 通过已有 Git HTTPS 凭据在子进程内认证，不持久化 token。macOS、真实 Ubuntu x86_64、Ubuntu ARM64 和 Debian ARM64 的本地验收通过，浏览器使用真实 Firefox 验收。正式 release 尚待标签变更后 CI 与签名发布验证。
 
 文件计划：复查私有文件/运行时边界与 systemd 硬化、备份恢复操作及验证、补 Debian/浏览器矩阵、CI/release 签名标签验证与 Linux 双架构打包/签名/发布工作流、发布校验文档与真实安装复验；更新本进度。签名私钥只在仓库外创建/保存，不复用用户 SSH 登录私钥，不引入生产额外服务。成功标准以规范 Phase 8 的真实 HTTPS、无默认凭据/通用执行、可验证签名、两架构实际安装为准；外部发布若受凭据/平台条件阻碍会如实保留未完成项。
 

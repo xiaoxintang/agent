@@ -3,7 +3,7 @@
 轻量化、自托管 Linux 多节点管理面板。架构与分阶段验收标准以
 [ARCHITECTURE_PLAN.md](ARCHITECTURE_PLAN.md) 为准。
 
-当前推进到 **Phase 8**：认证/WSS/Linux 指标、受管 Xray 生命周期、VLESS+REALITY 入站/客户端与原子配置修订，以及真实 StatsService 流量、小时图表和最终一致配额/到期策略。Agent 保持非 root，通过固定 socket 的短生命周期 helper 操作 Xray；已实现独立安装器；正式签名发布继续在 Phase 8 验收。
+当前推进到 **Phase 8**：认证/WSS/Linux 指标、受管 Xray 生命周期、VLESS+REALITY 入站/客户端与原子配置修订，以及真实 StatsService 流量、小时图表和最终一致配额/到期策略。Agent 保持非 root，通过固定 socket 的短生命周期 helper 操作 Xray；已实现独立安装器；CI 与双架构真实维护验收已通过，正式签名发布正按 Phase 8 执行。
 
 ## 环境
 
