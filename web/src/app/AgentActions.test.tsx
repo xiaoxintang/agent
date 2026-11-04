@@ -103,7 +103,11 @@ it("submits a constrained status task and displays its actual result", async () 
                 status: "succeeded",
                 result: {
                   status: "succeeded",
-                  data: { version: "test-version", os: "linux", arch: "aarch64" },
+                  data: {
+                    version: "test-version",
+                    os: "linux",
+                    arch: "aarch64",
+                  },
                 },
               }
             : pending,
