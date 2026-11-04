@@ -153,6 +153,7 @@ export default function ConfigPanel({
             </Typography.Title>
             <Form
               form={form}
+              name={`inbound-${nodeId}`}
               layout="vertical"
               initialValues={{
                 listen_address: "0.0.0.0",
@@ -295,6 +296,7 @@ export default function ConfigPanel({
             <Typography.Title level={5}>全局客户端</Typography.Title>
             <Form
               form={clientForm}
+              name={`client-${nodeId}`}
               layout="inline"
               onFinish={({
                 display_name,

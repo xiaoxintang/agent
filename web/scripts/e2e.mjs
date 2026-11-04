@@ -117,15 +117,18 @@ try {
   await config
     .getByRole("combobox", { name: "Browser inbound 的客户端", exact: true })
     .click();
-  await page
-    .getByRole("option", { name: "Browser client", exact: true })
-    .click();
+  const assignment = config.getByRole("combobox", {
+    name: "Browser inbound 的客户端",
+    exact: true,
+  });
+  await assignment.fill("Browser client");
+  await assignment.press("Enter");
   await page.keyboard.press("Escape");
   await config
     .getByRole("button", { name: "应用配置修订", exact: true })
     .click();
   await confirm();
-  await expect(config.getByText(/修订 2 · applied/)).toBeVisible({
+  await expect(config.getByText(/修订\s*2\s*·\s*applied/)).toBeVisible({
     timeout: 120000,
   });
   await config.getByRole("button", { name: "关闭配置", exact: true }).click();
@@ -136,6 +139,21 @@ try {
   );
   await row.getByRole("button", { name: "流量统计", exact: true }).click();
   const traffic = page.getByRole("dialog", { name: "节点流量", exact: true });
+  await expect
+    .poll(
+      async () => {
+        const data = await page.evaluate(async (url) => {
+          const response = await fetch(url, {
+            credentials: "same-origin",
+            cache: "no-store",
+          });
+          return response.json();
+        }, `${state.origin}/api/v1/nodes/${state.node_id}/traffic`);
+        return data.available && !data.stale;
+      },
+      { timeout: 45000 },
+    )
+    .toBe(true);
   await expect(traffic.getByText(/统计不可用或已过期/)).toHaveCount(0, {
     timeout: 45000,
   });
@@ -149,6 +167,16 @@ try {
       browser_login_enrollment_xray_install_inbound_client_assignment_apply_traffic: true,
     }),
   );
+} catch (error) {
+  const message = String(error?.message ?? "Browser E2E failed")
+    .replaceAll(state.password, "[REDACTED]")
+    .replace(
+      /(?:set-cookie|cookie|authorization):[^\n]*/gi,
+      "sensitive header: [REDACTED]",
+    )
+    .replace(/[a-f0-9]{64}/gi, "[REDACTED]");
+  console.error(message);
+  process.exitCode = 1;
 } finally {
   await context.close();
   await rm(folder, { recursive: true, force: true });

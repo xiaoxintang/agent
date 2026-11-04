@@ -921,6 +921,18 @@ async fn cache(bundle: &Bundle) -> Result<PathBuf> {
 }
 fn check_destinations(state: &Manifest) -> Result<()> {
     for path in file_paths(state) {
+        if managed_path(&path) {
+            for parent in path.ancestors().skip(1) {
+                if parent.exists() {
+                    bundle::secure(parent, false).map_err(|_| {
+                        format!(
+                            "Managed destination has an untrusted parent: {}",
+                            parent.display()
+                        )
+                    })?;
+                }
+            }
+        }
         if managed_path(&path)
             && fs::symlink_metadata(&path).is_ok()
             && !state.files.contains_key(&path)

@@ -8,6 +8,14 @@
 
 文件计划：复查私有文件/运行时边界与 systemd 硬化、备份恢复操作及验证、补 Debian/浏览器矩阵、CI/release 签名标签验证与 Linux 双架构打包/签名/发布工作流、发布校验文档与真实安装复验；更新本进度。签名私钥只在仓库外创建/保存，不复用用户 SSH 登录私钥，不引入生产额外服务。成功标准以规范 Phase 8 的真实 HTTPS、无默认凭据/通用执行、可验证签名、两架构实际安装为准；外部发布若受凭据/平台条件阻碍会如实保留未完成项。
 
+实施记录：已禁用三个进程的 core dump，私有文件以 O_NOFOLLOW 打开并核对实际 FD 的类型/UID/权限，Server 通过独占 server.lock 阻止同目录并发进程。真实安全审计发现 rustls-pemfile 已停维护，替换为现有 rustls-pki-types 的 PemObject 解析；cargo audit 当前 0 漏洞/0 警告，pnpm audit 无已知漏洞。Server systemd 模板已独立成文件并由 Installer 渲染使用，避免发布模板与实际部署重复定义。
+
+Debian 13.7/aarch64/systemd 257 原生 HVF VM 已通过完整 TTY/HTTPS/权限/Xray/Stats/故障回滚/升级/修复/卸载/注册/purge，以及冷 SQLite 备份→注入业务变更→恢复→撤销旧会话和节点凭据→重新注册。镜像经 Debian HTTPS SHA512SUMS 核对，实测 SHA-512 为 5d3ecec46fd29605db4084388a1e2eb82fd19a80202898f962840ea73793261de721e505e3877c829ae86c37fdd2f6c205b0b3b1337a89d0d4b98d9081adc0c2；不声称额外 GPG 验证。
+
+浏览器：使用真实 Firefox 和独立 NSS 测试 CA 信任库验证 HTTPS，不使用 ignoreHTTPSErrors。已贯通实际登录、一次性令牌注册、Xray 卸载/安装、入站/客户端创建和关联、配置应用；发现页面嵌套表单共享 DOM id，已为每节点表单命名修正。最后流量读取改用同一浏览器的已验证 TLS fetch，避免 Node API context 不继承 NSS 根；完整最终结果仍在复验。验收错误输出曾包含一次性测试 Cookie，测试实例已 purge、会话已失效，已补通用敏感 header/密码/令牌输出脱敏。
+
+发布准备：独立项目标签签名 key 存在维护者仓库外 0700 目录，公钥/allowed-signers 在 deploy；不复用任何节点 SSH key。发布资产将由 GitHub OIDC 短期身份签署 SHA256SUMS Sigstore bundle。Actions 全部固定实际 commit SHA；actionlint 通过。已使用既有 Git HTTPS 凭据成功推送 SSH 签名初始提交 f197867，CI https://github.com/xiaoxintang/agent/actions/runs/41763638991 已真实执行，但在 hosted runner 的 /usr/local/bin 可被 runner 写入时正确拒绝不可信祖先。生产 Installer 已补提前拒绝；CI 仅在自身一次性 VM 收紧目录权限，修正后待重跑。当前尚未创建正式标签/公开 release，不能称为发布完成。
+
 ## Phase 7 — Interactive installer
 
 日期：2026-11-04。状态：Phase 7 本机、x86_64/ARM64 Linux 与 TTY/分发测试验收通过；自动进入 Phase 8。
