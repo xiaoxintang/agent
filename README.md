@@ -4,34 +4,13 @@
 
 ## 用户：验证并一键安装
 
-中央节点需要 Debian/Ubuntu、systemd ≥249、root 权限和自己的 TLS 证书。安装器没有默认密码；公网使用必须启用 HTTPS。每个被管理节点需要独立安装 Agent。安装器直接下载固定版本的发布包，并校验可信 SHA-256。
+中央节点需要 Debian/Ubuntu、systemd ≥249、root 权限和自己的 TLS 证书。安装器没有默认密码；公网使用必须启用 HTTPS。每个被管理节点需要独立安装 Agent。
 
-先准备 `curl`、`cosign` 3.1.4 和 `sha256sum`。下面整段命令先验证 GitHub OIDC 签名的校验清单，再检查引导脚本本身；随后 bootstrap 会按平台下载归档并再次校验：
+下载并运行一键安装脚本：
 
 ```sh
-set -eu
-umask 077
-panel_version=v0.1.0
-panel_release=https://github.com/xiaoxintang/agent/releases/download/$panel_version
-panel_tmp=$(mktemp -d)
-trap 'rm -rf "$panel_tmp"' EXIT HUP INT TERM
-curl --fail --silent --show-error --location --proto '=https' "$panel_release/SHA256SUMS" -o "$panel_tmp/SHA256SUMS"
-curl --fail --silent --show-error --location --proto '=https' "$panel_release/SHA256SUMS.sigstore.json" -o "$panel_tmp/SHA256SUMS.sigstore.json"
-curl --fail --silent --show-error --location --proto '=https' "$panel_release/bootstrap.sh" -o "$panel_tmp/bootstrap.sh"
-cosign verify-blob \
-  --bundle "$panel_tmp/SHA256SUMS.sigstore.json" \
-  --certificate-identity 'https://github.com/xiaoxintang/agent/.github/workflows/release.yml@refs/tags/v0.1.0' \
-  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
-  "$panel_tmp/SHA256SUMS"
-panel_bootstrap_sha=$(awk '$2=="./bootstrap.sh" {print $1}' "$panel_tmp/SHA256SUMS")
-printf '%s  %s\n' "$panel_bootstrap_sha" "$panel_tmp/bootstrap.sh" | sha256sum --check
-case "$(uname -m)" in
-  x86_64) panel_archive=panel-linux-x86_64-$panel_version.tar.gz ;;
-  aarch64|arm64) panel_archive=panel-linux-aarch64-$panel_version.tar.gz ;;
-  *) echo 'Unsupported Linux architecture' >&2; exit 1 ;;
-esac
-panel_archive_sha=$(awk -v name="./$panel_archive" '$2==name {print $1}' "$panel_tmp/SHA256SUMS")
-sudo sh "$panel_tmp/bootstrap.sh" --version "$panel_version" --sha256 "$panel_archive_sha" --component all
+curl -fsSL https://github.com/xiaoxintang/agent/releases/latest/download/bootstrap.sh -o bootstrap.sh
+sudo sh bootstrap.sh
 ```
 
 交互安装会询问 TLS 证书和私钥、浏览器访问地址、首个管理员密码、节点名称及是否安装 Xray。密码隐藏输入。安装器创建 Server 和 Agent 专用账号、systemd 服务与受限 helper；首次合并安装会创建本机节点并注册 Agent。它不会自动申请或续期 TLS 证书。

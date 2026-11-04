@@ -1261,7 +1261,7 @@ pub async fn repair(component: Component) -> Result<()> {
         let version = state.versions.get(&role).ok_or("Missing version")?.clone();
         let path = bundle::cache_path(&version);
         let digest = lifecycle::hash(&bundle::read(&path.join("bundle.json"), 8192, true)?);
-        let bundle = bundle::load(&path, &digest)?;
+        let bundle = bundle::load(&path, Some(&digest))?;
         // Repair explicitly restores only manifest-owned static files; data is untouched.
         for path in state.files.keys() {
             if path.exists() {
@@ -1628,7 +1628,7 @@ fn purge_control() -> Result<()> {
         }
         let path = entry.path();
         let bytes = bundle::read(&path.join("bundle.json"), 8192, true)?;
-        let cached = bundle::load(&path, &lifecycle::hash(&bytes))?;
+        let cached = bundle::load(&path, Some(&lifecycle::hash(&bytes)))?;
         if cached.metadata.version != version {
             return Err("Cache ownership mismatch".into());
         }

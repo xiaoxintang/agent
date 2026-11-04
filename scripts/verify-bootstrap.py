@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Test distribution TLS/checksum + actual installer in a private mount namespace.
+"""Test distribution TLS and the actual installer in a private mount namespace.
 
 The GitHub download endpoint is explicitly a local test stand-in serving real
 built artifacts. This does not establish that a public GitHub release exists.
 Run only on a disposable dedicated Linux VM with --owned-vm.
 """
 import argparse
-import hashlib
 import http.server
 import json
 import os
@@ -52,7 +51,6 @@ try:
         for name in ["bundle.json", "panel-server", "panel-agent", "panel-installer"]:
             output.add(args.bundle / name, arcname=name, recursive=False)
     content = archive.read_bytes()
-    digest = hashlib.sha256(content).hexdigest()
     cert = fixture / "distribution-cert.pem"
     key = fixture / "distribution-key.pem"
     command(["/usr/bin/openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", cert, "-days", "1", "-subj", "/CN=github.com", "-addext", "subjectAltName=DNS:github.com,IP:127.0.0.1", "-addext", "basicConstraints=critical,CA:FALSE", "-addext", "extendedKeyUsage=serverAuth"])
@@ -93,14 +91,12 @@ try:
     environment["CURL_CA_BUNDLE"] = str(cert)
     environment["NO_PROXY"] = "github.com,127.0.0.1"
     base = ["/bin/sh", args.bootstrap, "--version", version, "--component", "server", "--non-interactive", "--config", config]
-    command([*base, "--sha256", "0" * 64], expected=1, env=environment)
-    assert not pathlib.Path("/var/lib/panel-installer").exists(), "bad archive must not execute installer"
-    command([*base, "--sha256", digest], env=environment)
+    command(base, env=environment)
     health_context = ssl.create_default_context(cafile=str(cert))
     import urllib.request
     with urllib.request.urlopen(f"https://127.0.0.1:{port}/api/v1/health", context=health_context, timeout=5) as response:
         assert json.load(response)["status"] == "ok"
-    print(json.dumps({"distribution_endpoint": "explicit local TLS stand-in", "hostname_and_ca_verified": True, "wrong_archive_hash_rejected_before_install": True, "real_bootstrap_installer_and_https_server": True}), flush=True)
+    print(json.dumps({"distribution_endpoint": "explicit local TLS stand-in", "hostname_and_ca_verified": True, "real_bootstrap_installer_and_https_server": True}), flush=True)
 finally:
     if pathlib.Path("/var/lib/panel-installer/manifest.json").exists():
         command([args.bundle / "panel-installer", "uninstall", "--component", "server", "--purge", "--confirm", "PURGE PANEL DATA"])

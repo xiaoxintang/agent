@@ -108,16 +108,14 @@ async fn main() -> Result<()> {
             }
             let artifacts = bundle::load(
                 args.bundle.as_deref().ok_or("--bundle is required")?,
-                args.bundle_sha256
-                    .as_deref()
-                    .ok_or("--bundle-sha256 is required")?,
+                args.bundle_sha256.as_deref(),
             )?;
             deployment::install(input, args.component, artifacts).await?;
         }
         Action::Upgrade(args) => {
             deployment::upgrade(
                 args.component,
-                bundle::load(&args.bundle, &args.bundle_sha256)?,
+                bundle::load(&args.bundle, Some(&args.bundle_sha256))?,
                 &args.version,
             )
             .await?

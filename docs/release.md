@@ -20,13 +20,13 @@ sha256sum --check SHA256SUMS
 
 版本变化时必须同时修改精确 identity 和标签。先认证 checksum manifest，再信任其中摘要；从未知镜像同时下载二进制和 checksum 不能建立可信身份。cosign 本身也必须来自可信安装渠道。不要用 TLS 跳过参数替代身份验证。
 
-审阅并验证 bootstrap.sh 后，将认证过的相应平台 archive SHA-256 明确传入：
+bootstrap.sh 会从 GitHub Release 下载当前固定版本的对应平台归档，并检查归档文件结构与包内二进制摘要：
 
 ```sh
-sudo sh bootstrap.sh --version v0.1.0 --sha256 AUTHENTICATED_PLATFORM_ARCHIVE_SHA256
+sudo sh bootstrap.sh
 ```
 
-引导程序固定 release 版本、GitHub HTTPS 来源、下载大小和路径白名单；不执行下载流，不使用 curl|sh，保留 TTY 给 Installer。非交互配置应是 root-owned 0600 JSON，使用 `--non-interactive --config /root/panel-install.json`。`--sha256` 是整个 archive 摘要，Installer 内部的 `--bundle-sha256` 是 bundle.json 摘要。
+引导程序固定 release 版本、GitHub HTTPS 来源、下载大小和路径白名单；不执行下载流，不使用 curl|sh，保留 TTY 给 Installer。非交互配置应是 root-owned 0600 JSON，使用 `--non-interactive --config /root/panel-install.json`。单独调用 Installer 时可以提供 `--bundle-sha256` 对元数据做额外校验。
 
 维护发布时先修改 Cargo workspace 版本，完整验收并提交，确认私钥在仓库外后签署版本标签。使用当前专用项目密钥的本地命令（路径指向维护者私有目录，不是节点 SSH key）：
 

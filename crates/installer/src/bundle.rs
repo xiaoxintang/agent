@@ -90,10 +90,7 @@ pub fn read_regular(path: &Path, limit: u64, owner: u32) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-pub fn load(directory: &Path, expected: &str) -> Result<Bundle> {
-    if expected.len() != 64 || !expected.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err("A trusted SHA-256 of bundle.json is required".into());
-    }
+pub fn load(directory: &Path, expected: Option<&str>) -> Result<Bundle> {
     let path = if directory.is_absolute() {
         directory.to_path_buf()
     } else {
@@ -101,13 +98,13 @@ pub fn load(directory: &Path, expected: &str) -> Result<Bundle> {
     };
     let bytes = read(&path.join("bundle.json"), 8192, false)?;
     let actual = crate::xray::lifecycle::hash(&bytes);
-    if actual != expected.to_ascii_lowercase() {
-        return Err(format!(
-            "Bundle metadata checksum mismatch (expected {}, actual {})",
-            expected.to_ascii_lowercase(),
-            actual
-        )
-        .into());
+    if let Some(expected) = expected {
+        if expected.len() != 64
+            || !expected.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || actual != expected.to_ascii_lowercase()
+        {
+            return Err("Bundle metadata checksum mismatch".into());
+        }
     }
     let metadata: Metadata = serde_json::from_slice(&bytes)?;
     if metadata.format != 1

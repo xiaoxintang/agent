@@ -7,7 +7,7 @@ use std::{io::IsTerminal, path::PathBuf};
 
 pub fn install(args: &mut InstallArgs) -> Result<Input> {
     if !std::io::stdin().is_terminal() {
-        return Err("Interactive install requires a TTY; use --non-interactive --config FILE --bundle DIR --bundle-sha256 HASH".into());
+        return Err("Interactive install requires a TTY; use --non-interactive --config FILE --bundle DIR".into());
     }
     let component = Select::new()
         .with_prompt("Component")
@@ -137,13 +137,6 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
                 .with_prompt("Verified bundle directory")
                 .interact_text()?,
         ));
-    }
-    if args.bundle_sha256.is_none() {
-        args.bundle_sha256 = Some(
-            Prompt::new()
-                .with_prompt("Trusted bundle.json SHA-256")
-                .interact_text()?,
-        );
     }
     Ok(Input {
         settings,

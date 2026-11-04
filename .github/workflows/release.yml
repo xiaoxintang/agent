@@ -50,12 +50,19 @@ jobs:
       - uses: pnpm/action-setup@v6.1.1
         with:
           package_json_file: web/package.json
+      - id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v6.1.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: rust-release-${{ matrix.target }}-1.96-${{ hashFiles('Cargo.lock') }}
+            target
+            ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: release-${{ runner.os }}-${{ matrix.target }}-rust-1.96-${{ hashFiles('Cargo.lock') }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            release-${{ runner.os }}-${{ matrix.target }}-rust-1.96-${{ hashFiles('Cargo.lock') }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}-
+            release-${{ runner.os }}-${{ matrix.target }}-rust-1.96-${{ hashFiles('Cargo.lock') }}-
       - name: Complete checks and native standalone smoke
         run: sh scripts/check.sh
       - name: Build static Linux release after the embedded web build
@@ -134,7 +141,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp scripts/bootstrap.sh dist/bootstrap.sh
+          sed "s/__PANEL_VERSION__/$GITHUB_REF_NAME/" scripts/bootstrap.sh > dist/bootstrap.sh
           cp deploy/systemd/*.service deploy/systemd/*.socket dist/
           cp deploy/release-tag-key.pub dist/
           cp docs/release.md dist/VERIFICATION.md

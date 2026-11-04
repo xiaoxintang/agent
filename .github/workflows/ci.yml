@@ -19,12 +19,19 @@ jobs:
       - uses: pnpm/action-setup@v6.1.1
         with:
           package_json_file: web/package.json
+      - id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
       - uses: actions/cache/restore@v6.1.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: rust-ci-${{ runner.os }}-${{ runner.arch }}-1.96-${{ hashFiles('Cargo.lock') }}
+            target
+            ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ci-${{ runner.os }}-${{ runner.arch }}-rust-1.96-${{ hashFiles('Cargo.lock') }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            ci-${{ runner.os }}-${{ runner.arch }}-rust-1.96-${{ hashFiles('Cargo.lock') }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}-
+            ci-${{ runner.os }}-${{ runner.arch }}-rust-1.96-${{ hashFiles('Cargo.lock') }}-
       - name: Install pinned Rust toolchain
         run: rustup show active-toolchain
       - name: Format, lint, contracts, tests, build and standalone smoke
@@ -34,7 +41,9 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: rust-ci-${{ runner.os }}-${{ runner.arch }}-1.96-${{ hashFiles('Cargo.lock') }}
+            target
+            ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ci-${{ runner.os }}-${{ runner.arch }}-rust-1.96-${{ hashFiles('Cargo.lock') }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}-${{ github.sha }}
       - name: Real Linux metrics, systemd allowlist and privilege boundary
         run: python3 scripts/verify-linux.py
       - name: Real installer, TTY, rollback, privilege boundary and bootstrap
