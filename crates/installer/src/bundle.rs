@@ -98,13 +98,12 @@ pub fn load(directory: &Path, expected: Option<&str>) -> Result<Bundle> {
     };
     let bytes = read(&path.join("bundle.json"), 8192, false)?;
     let actual = crate::xray::lifecycle::hash(&bytes);
-    if let Some(expected) = expected {
-        if expected.len() != 64
+    if let Some(expected) = expected
+        && (expected.len() != 64
             || !expected.bytes().all(|byte| byte.is_ascii_hexdigit())
-            || actual != expected.to_ascii_lowercase()
-        {
-            return Err("Bundle metadata checksum mismatch".into());
-        }
+            || actual != expected.to_ascii_lowercase())
+    {
+        return Err("Bundle metadata checksum mismatch".into());
     }
     let metadata: Metadata = serde_json::from_slice(&bytes)?;
     if metadata.format != 1
