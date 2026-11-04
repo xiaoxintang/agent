@@ -38,12 +38,13 @@ jobs:
           panel_ci_dir=$(mktemp -d /tmp/panel-ci.XXXXXXXX)
           panel_ci_arch=$(uname -m)
           panel_ci_version=$(target/release/panel-installer --version | cut -d ' ' -f 2)
+          panel_ci_failure_version="${panel_ci_version}-1"
           mkdir "$panel_ci_dir/failure-binaries"
-          cc -O2 crates/installer/tests/fixtures/failing-release.c -o "$panel_ci_dir/failure-binaries/panel-server"
+          cc -O2 -DFAILURE_VERSION="\"$panel_ci_failure_version\"" crates/installer/tests/fixtures/failing-release.c -o "$panel_ci_dir/failure-binaries/panel-server"
           cp "$panel_ci_dir/failure-binaries/panel-server" "$panel_ci_dir/failure-binaries/panel-agent"
           cp "$panel_ci_dir/failure-binaries/panel-server" "$panel_ci_dir/failure-binaries/panel-installer"
           python3 scripts/package.py --binaries target/release --output "$panel_ci_dir/bundle" --arch "$panel_ci_arch" --version "$panel_ci_version"
-          python3 scripts/package.py --binaries "$panel_ci_dir/failure-binaries" --output "$panel_ci_dir/failure" --arch "$panel_ci_arch" --version 0.1.1
+          python3 scripts/package.py --binaries "$panel_ci_dir/failure-binaries" --output "$panel_ci_dir/failure" --arch "$panel_ci_arch" --version "$panel_ci_failure_version"
           panel_ci_hash=$(sha256sum "$panel_ci_dir/bundle/bundle.json" | cut -d ' ' -f 1)
           panel_ci_failure_hash=$(sha256sum "$panel_ci_dir/failure/bundle.json" | cut -d ' ' -f 1)
           # Hosted runners grant the runner write access here; the disposable test

@@ -87,14 +87,15 @@ jobs:
         run: |
           set -euo pipefail
           panel_version=${GITHUB_REF_NAME#v}
+          panel_failure_version="${panel_version}-1"
           test "$("target/$PANEL_TARGET/release/panel-installer" --version)" = "panel-installer $panel_version"
           panel_test_dir=$(mktemp -d /tmp/panel-release.XXXXXXXX)
           mkdir "$panel_test_dir/failure-binaries"
-          cc -O2 crates/installer/tests/fixtures/failing-release.c -o "$panel_test_dir/failure-binaries/panel-server"
+          cc -O2 -DFAILURE_VERSION="\"$panel_failure_version\"" crates/installer/tests/fixtures/failing-release.c -o "$panel_test_dir/failure-binaries/panel-server"
           cp "$panel_test_dir/failure-binaries/panel-server" "$panel_test_dir/failure-binaries/panel-agent"
           cp "$panel_test_dir/failure-binaries/panel-server" "$panel_test_dir/failure-binaries/panel-installer"
           python3 scripts/package.py --binaries "target/$PANEL_TARGET/release" --output "$panel_test_dir/bundle" --arch "$PANEL_ARCH" --version "$panel_version"
-          python3 scripts/package.py --binaries "$panel_test_dir/failure-binaries" --output "$panel_test_dir/failure" --arch "$PANEL_ARCH" --version 0.1.1
+          python3 scripts/package.py --binaries "$panel_test_dir/failure-binaries" --output "$panel_test_dir/failure" --arch "$PANEL_ARCH" --version "$panel_failure_version"
           panel_hash=$(sha256sum "$panel_test_dir/bundle/bundle.json" | cut -d ' ' -f 1)
           panel_failure_hash=$(sha256sum "$panel_test_dir/failure/bundle.json" | cut -d ' ' -f 1)
           mkdir -p dist

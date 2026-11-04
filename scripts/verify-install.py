@@ -263,10 +263,11 @@ try:
     if args.failure_bundle:
         assert args.failure_sha256, "failure bundle requires a trusted digest"
         failure_version = json.loads((args.failure_bundle / "bundle.json").read_text())["version"]
+        assert failure_version != version, "failure bundle must use a different version to avoid the installed bundle cache"
         failure_started = time.time()
-        cli("upgrade", "--component", "all", "--bundle", args.failure_bundle, "--bundle-sha256", args.failure_sha256, "--version", failure_version, expected=1)
+        failure_output = cli("upgrade", "--component", "all", "--bundle", args.failure_bundle, "--bundle-sha256", args.failure_sha256, "--version", failure_version, expected=1)
         failure_log = run(["/usr/bin/journalctl", "--no-pager", "--since", f"@{failure_started}", "-u", "panel-server.service"])
-        assert "Intentional acceptance startup failure" in failure_log, "failure injection must reach actual service startup"
+        assert "Intentional acceptance startup failure" in failure_log, f"failure injection must reach actual service startup; upgrade output: {failure_output}; server journal: {failure_log}"
         restored = json.loads(cli("status"))
         assert restored["integrity_ok"] and all(value == version for value in restored["versions"].values())
         assert sqlite3.connect("/var/lib/panel/agent/agent.sqlite3").execute("SELECT node_id FROM identity").fetchone()[0] == before
