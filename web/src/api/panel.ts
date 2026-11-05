@@ -27,6 +27,16 @@ export class ApiError extends Error {
   }
 }
 
+function randomUuid(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 async function request<T>(
   path: string,
   method = "GET",
@@ -96,7 +106,7 @@ export const createStatusTask = (node_id: string, csrf: string) =>
   request<TaskRecord>(
     `/nodes/${encodeURIComponent(node_id)}/tasks`,
     "POST",
-    { operation: "agent_status", idempotency_key: crypto.randomUUID() },
+    { operation: "agent_status", idempotency_key: randomUuid() },
     csrf,
   );
 export const getTask = (id: string) =>
@@ -120,7 +130,7 @@ export const createXrayTask = (
   request<TaskRecord>(
     `/nodes/${encodeURIComponent(nodeId)}/xray/${action}`,
     "POST",
-    { idempotency_key: crypto.randomUUID(), ...(version ? { version } : {}) },
+    { idempotency_key: randomUuid(), ...(version ? { version } : {}) },
     csrf,
   );
 export const createServiceStatusTask = (
@@ -133,7 +143,7 @@ export const createServiceStatusTask = (
     "POST",
     {
       operation: { service_status: { service } },
-      idempotency_key: crypto.randomUUID(),
+      idempotency_key: randomUuid(),
     },
     csrf,
   );
@@ -198,7 +208,7 @@ export const applyConfig = (node: string, csrf: string) =>
   request<RevisionView>(
     `/nodes/${encodeURIComponent(node)}/config/apply`,
     "POST",
-    { idempotency_key: crypto.randomUUID() },
+    { idempotency_key: randomUuid() },
     csrf,
   );
 

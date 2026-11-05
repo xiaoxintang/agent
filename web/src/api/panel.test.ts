@@ -1,5 +1,38 @@
 import { expect, it, vi } from "vitest";
-import { ApiError, createNode, getSession, login, logout } from "./panel";
+import {
+  ApiError,
+  applyConfig,
+  createNode,
+  createServiceStatusTask,
+  createStatusTask,
+  createXrayTask,
+  getSession,
+  login,
+  logout,
+} from "./panel";
+
+it("creates task UUIDs when randomUUID is unavailable", async () => {
+  const getRandomValues = crypto.getRandomValues.bind(crypto);
+  vi.stubGlobal("crypto", { getRandomValues });
+  const fetch = vi
+    .fn()
+    .mockImplementation(() => Promise.resolve(new Response("{}")));
+  vi.stubGlobal("fetch", fetch);
+  await createStatusTask("node", "csrf");
+  await createServiceStatusTask("node", "xray", "csrf");
+  await createXrayTask("node", "status", "csrf");
+  await applyConfig("node", "csrf");
+  const keys = fetch.mock.calls.map(
+    (call) => JSON.parse(call[1].body).idempotency_key as string,
+  );
+  expect(keys).toHaveLength(4);
+  expect(new Set(keys).size).toBe(4);
+  for (const key of keys) {
+    expect(key).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+  }
+});
 
 it("treats an expired or absent session as logged out", async () => {
   vi.stubGlobal(
