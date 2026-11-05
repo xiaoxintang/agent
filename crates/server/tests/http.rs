@@ -9,9 +9,7 @@ use tower::ServiceExt;
 async fn request(method: &str, uri: &str) -> Response {
     let directory = tempfile::tempdir().unwrap();
     let pool = db::open(&directory.path().join("data")).await.unwrap();
-    let state = AppState::new(pool.clone(), "http://127.0.0.1:8080".into(), true)
-        .await
-        .unwrap();
+    let state = AppState::new(pool.clone(), true).await.unwrap();
     let response = app::router(state)
         .oneshot(
             Request::builder()

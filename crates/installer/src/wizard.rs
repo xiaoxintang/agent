@@ -5,6 +5,40 @@ use crate::{
 use dialoguer::{Confirm, Input as Prompt, Password, Select};
 use std::{io::IsTerminal, path::PathBuf};
 
+async fn public_ipv4() -> Option<std::net::Ipv4Addr> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .ok()?;
+    let mut response = client.get("https://api.ipify.org").send().await.ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.ok()? {
+        if body.len() + chunk.len() > 64 {
+            return None;
+        }
+        body.extend_from_slice(&chunk);
+    }
+    parse_public_ipv4(&body)
+}
+
+fn parse_public_ipv4(body: &[u8]) -> Option<std::net::Ipv4Addr> {
+    let ip: std::net::Ipv4Addr = std::str::from_utf8(body).ok()?.trim().parse().ok()?;
+    if ip.is_private()
+        || ip.is_loopback()
+        || ip.is_link_local()
+        || ip.is_unspecified()
+        || ip.is_broadcast()
+        || ip.is_multicast()
+    {
+        return None;
+    }
+    Some(ip)
+}
+
 fn http_origin_default(bind: std::net::SocketAddr) -> Option<String> {
     let preferred = || {
         let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
@@ -34,7 +68,7 @@ fn http_origin_from(
     })
 }
 
-pub fn install(args: &mut InstallArgs) -> Result<Input> {
+pub async fn install(args: &mut InstallArgs) -> Result<Input> {
     if !std::io::stdin().is_terminal() {
         return Err(
             "Interactive install requires a TTY; use --non-interactive --config FILE --bundle DIR"
@@ -51,6 +85,10 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
         })
         .interact()?;
     args.component = [Component::All, Component::Server, Component::Agent][component];
+    let retained = crate::deployment::retained_settings(args.component)?;
+    if retained.is_some() {
+        eprintln!("Retained installation settings found; using them as defaults.");
+    }
     let custom = Select::new()
         .with_prompt("Setup mode")
         .items([
@@ -60,24 +98,28 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
         .default(0)
         .interact()?
         == 1;
-    let mut settings = Settings::default();
+    let mut settings = retained.clone().unwrap_or_default();
     let mut password = None;
     let mut token = None;
     if args.component.server() {
         settings.local_http = !Confirm::new()
             .with_prompt("Enable HTTPS? No allows unencrypted IP access (passwords and sessions can be intercepted)")
-            .default(true)
+            .default(retained.as_ref().is_none_or(|saved| !saved.local_http))
             .interact()?;
+        if settings.local_http {
+            settings.tls_cert = None;
+            settings.tls_key = None;
+            settings.acme_domain = None;
+        }
         settings.server_bind = Prompt::new()
             .with_prompt("Server bind IP:port")
-            .default(
-                if settings.local_http {
-                    "0.0.0.0:8080"
-                } else {
-                    "0.0.0.0:8443"
-                }
-                .into(),
-            )
+            .default(if let Some(saved) = &retained {
+                saved.server_bind.clone()
+            } else if settings.local_http {
+                "0.0.0.0:8080".into()
+            } else {
+                "0.0.0.0:8443".into()
+            })
             .interact_text()?;
         let server_bind = settings.server_bind.parse::<std::net::SocketAddr>()?;
         let server_port = server_bind.port();
@@ -88,22 +130,52 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
         };
         settings.server_origin = if settings.local_http {
             let prompt = Prompt::new().with_prompt("Browser HTTP origin (NAT public IP or external port may differ; enter the actual browser address)");
-            match http_origin_default(server_bind) {
+            let default = if let Some(saved) = &retained
+                && saved.local_http
+                && saved.server_bind == settings.server_bind
+            {
+                Some(saved.server_origin.clone())
+            } else if server_bind.ip().is_loopback() {
+                http_origin_default(server_bind)
+            } else {
+                eprintln!("Looking up public IPv4 address (up to 3 seconds)...");
+                public_ipv4()
+                    .await
+                    .and_then(|ip| {
+                        http_origin_from(
+                            std::net::SocketAddr::from(([0, 0, 0, 0], server_port)),
+                            || Some(ip),
+                        )
+                    })
+                    .or_else(|| http_origin_default(server_bind))
+            };
+            match default {
                 Some(default) => prompt.default(default).interact_text()?,
                 None => prompt.interact_text()?,
             }
         } else {
             Prompt::new()
                 .with_prompt("Exact browser origin (no trailing slash)")
-                .default(default_origin)
+                .default(
+                    retained
+                        .as_ref()
+                        .filter(|saved| !saved.local_http)
+                        .map_or(default_origin, |saved| saved.server_origin.clone()),
+                )
                 .interact_text()?
         };
         if !settings.local_http {
             if Confirm::new()
                 .with_prompt("Automatically obtain and renew a Let's Encrypt certificate?")
-                .default(true)
+                .default(
+                    retained
+                        .as_ref()
+                        .is_none_or(|saved| saved.acme_domain.is_some()),
+                )
                 .interact()?
             {
+                settings.tls_cert = None;
+                settings.tls_key = None;
                 let origin = url::Url::parse(&settings.server_origin)?;
                 settings.acme_domain = Some(
                     origin
@@ -112,15 +184,28 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
                         .to_owned(),
                 );
             } else {
+                settings.acme_domain = None;
                 settings.tls_cert = Some(
                     Prompt::<String>::new()
                         .with_prompt("TLS certificate PEM path")
+                        .with_initial_text(
+                            settings
+                                .tls_cert
+                                .as_ref()
+                                .map_or_else(String::new, |path| path.display().to_string()),
+                        )
                         .interact_text()?
                         .into(),
                 );
                 settings.tls_key = Some(
                     Prompt::<String>::new()
                         .with_prompt("TLS private key PEM path")
+                        .with_initial_text(
+                            settings
+                                .tls_key
+                                .as_ref()
+                                .map_or_else(String::new, |path| path.display().to_string()),
+                        )
                         .interact_text()?
                         .into(),
                 );
@@ -130,13 +215,13 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
             settings.server_data = PathBuf::from(
                 Prompt::<String>::new()
                     .with_prompt("Server data path under /var/lib/panel")
-                    .default("/var/lib/panel/server".into())
+                    .default(settings.server_data.display().to_string())
                     .interact_text()?,
             );
         }
         settings.admin_username = Prompt::new()
             .with_prompt("Administrator username")
-            .default("admin".into())
+            .default(settings.admin_username.clone())
             .interact_text()?;
         password = Some(
             Password::new()
@@ -150,11 +235,16 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
     if args.component.agent() {
         settings.agent_name = Prompt::new()
             .with_prompt("Node display name (used when creating a local node)")
-            .default("local node".into())
+            .default(settings.agent_name.clone())
             .interact_text()?;
         if args.component == Component::Agent {
             settings.agent_server = Prompt::new()
                 .with_prompt("Server WSS URL including /agent/v1/connect")
+                .with_initial_text(
+                    retained
+                        .as_ref()
+                        .map_or_else(String::new, |saved| saved.agent_server.clone()),
+                )
                 .interact_text()?;
             token = Some(
                 Password::new()
@@ -174,21 +264,25 @@ pub fn install(args: &mut InstallArgs) -> Result<Input> {
         if args.component == Component::Agent || !settings.local_http {
             let ca: String = Prompt::new()
                 .with_prompt("Additional trusted CA PEM path (empty for public CA)")
+                .with_initial_text(
+                    settings
+                        .agent_ca
+                        .as_ref()
+                        .map_or_else(String::new, |path| path.display().to_string()),
+                )
                 .allow_empty(true)
                 .interact_text()?;
-            if !ca.is_empty() {
-                settings.agent_ca = Some(ca.into());
-            }
+            settings.agent_ca = if ca.is_empty() { None } else { Some(ca.into()) };
         }
         settings.install_xray = Confirm::new()
             .with_prompt("Install verified Xray 26.10.31 with no business listening ports?")
-            .default(false)
+            .default(settings.install_xray)
             .interact()?;
     }
     if custom {
         settings.autostart = Confirm::new()
             .with_prompt("Enable services at boot?")
-            .default(true)
+            .default(settings.autostart)
             .interact()?;
     }
     if args.bundle.is_none() {
@@ -226,7 +320,18 @@ pub fn confirm_plan(component: Component, settings: &Settings) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{http_origin_default, http_origin_from};
+    use super::{http_origin_default, http_origin_from, parse_public_ipv4};
+
+    #[test]
+    fn public_ipv4_response_requires_a_usable_ipv4() {
+        assert_eq!(
+            parse_public_ipv4(b"8.8.8.8\n"),
+            Some("8.8.8.8".parse().unwrap())
+        );
+        for response in ["invalid", "10.0.0.1", "127.0.0.1", "::1", "0.0.0.0"] {
+            assert_eq!(parse_public_ipv4(response.as_bytes()), None);
+        }
+    }
 
     #[test]
     fn http_default_uses_explicit_ipv4_and_port() {

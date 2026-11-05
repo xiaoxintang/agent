@@ -55,7 +55,7 @@ impl Harness {
         listener.set_nonblocking(true).unwrap();
         let origin = format!("https://{}", listener.local_addr().unwrap());
         let url = format!("wss://{}/agent/v1/connect", listener.local_addr().unwrap());
-        let mut state = AppState::new(pool, origin.clone(), true).await.unwrap();
+        let mut state = AppState::new(pool, true).await.unwrap();
         state.tls_enabled = true;
         let router = app::router(state.clone());
         let key = rcgen::generate_simple_self_signed(names).unwrap();
@@ -261,6 +261,30 @@ async fn receive(socket: &mut Socket) -> Envelope {
 }
 fn unauthorized(error: tungstenite::Error) {
     assert!(matches!(error, tungstenite::Error::Http(response) if response.status() == 401));
+}
+
+#[tokio::test]
+async fn agent_websocket_accepts_origin_with_valid_credentials() {
+    let server = Harness::new().await;
+    let node = server.node().await;
+    let token = server.issue(&node).await;
+    let mut request = server.url.as_str().into_client_request().unwrap();
+    request
+        .headers_mut()
+        .insert("origin", "https://other.example".parse().unwrap());
+    request.headers_mut().insert(
+        "authorization",
+        format!("Enrollment {token}").parse().unwrap(),
+    );
+    let (mut socket, _) = tokio_tungstenite::connect_async_tls_with_config(
+        request,
+        None,
+        false,
+        Some(server.connector()),
+    )
+    .await
+    .unwrap();
+    socket.close(None).await.unwrap();
 }
 
 #[tokio::test]

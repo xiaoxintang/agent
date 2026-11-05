@@ -111,12 +111,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             return Err("ACME requires a matching DNS origin and reserves port 80".into());
         }
     }
-    let mut state = AppState::new(
-        db::open(&config::data_directory()).await?,
-        origin,
-        secure_cookie,
-    )
-    .await?;
+    let mut state =
+        AppState::new(db::open(&config::data_directory()).await?, secure_cookie).await?;
     tokio::spawn(panel_server::traffic::run(
         state.pool.clone(),
         state.agents_shutdown.subscribe(),

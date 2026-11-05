@@ -2,7 +2,7 @@
 
 ## Phase 4 Xray 生命周期
 
-`POST /api/v1/nodes/{id}/xray/{action}` 沿用管理员 Cookie/准确 Origin/CSRF 和任务审计，action 仅为 install/upgrade/start/stop/restart/rollback/uninstall/status。请求为 `{idempotency_key:UUID,version?:XrayVersion}`，install/upgrade 必须提供版本，其余动作禁止版本参数；也可通过 TaskInput 的 `{"xray":operation}` 提交相同封闭枚举。新任务 201、同键同操作重试 200、冲突 409。生命周期任务截止时间为 300 秒，其他任务仍为 60 秒。
+`POST /api/v1/nodes/{id}/xray/{action}` 沿用管理员 Cookie/CSRF 和任务审计，action 仅为 install/upgrade/start/stop/restart/rollback/uninstall/status。请求为 `{idempotency_key:UUID,version?:XrayVersion}`，install/upgrade 必须提供版本，其余动作禁止版本参数；也可通过 TaskInput 的 `{"xray":operation}` 提交相同封闭枚举。新任务 201、同键同操作重试 200、冲突 409。生命周期任务截止时间为 300 秒，其他任务仍为 60 秒。
 仅信任固定的 `26.10.21`、`26.10.31`，Linux x86_64/aarch64；catalog 的 ZIP SHA-256 来自官方 GitHub Release 的 HTTPS 元数据并固定进代码，不支持 latest、任意 URL、路径或 unit。最多 24 MiB 下载、64 MiB 二进制，只读取 ZIP 中的 xray 内容，不对其他条目执行解包。HTTPS 重定向仅限 GitHub 与其 release-assets 主机，证书错误/摘要错误直接失败。
 结果是 `{status:"xray",data:{status:"ok",data:{installed,version,previous_version,active}}}` 或 `{status:"xray",data:{status:"error",data:XrayError}}`；报告必须匹配原操作/所选版本，成功或失败记录 xray.operation 审计。初始配置没有监听端口；uninstall 只移除已验证归属的二进制/current/unit，保留配置与数据，不提供 purge。
 Agent 通过固定 `/run/panel/xray-helper.sock` 请求短生命周期 helper，验证服务端 peer UID=0；helper 只接受 root-owned `/etc/panel/xray-helper.json` 指定的非 root peer UID。请求包含 UUID task_id、截止时间和封闭 operation，无任何路径/命令/服务名参数，最多 4 KiB。helper 自身也保留 receipt，重复请求只返回缓存，不确定操作返回 interrupted。
@@ -36,11 +36,11 @@ wire 已升级到 **v2**，必须一起升级 Server 和 Agent；v1 连接被拒
 
 | 方法与路径 | 认证与请求 | 响应 |
 | --- | --- | --- |
-| POST `/api/v1/nodes/enrollments` | 管理员 Cookie、Origin、CSRF；`{node_id}` | `{node_id,token,expires_at}`；随机 token 仅本次返回，10 分钟、单次使用 |
+| POST `/api/v1/nodes/enrollments` | 管理员 Cookie、CSRF；`{node_id}` | `{node_id,token,expires_at}`；随机 token 仅本次返回，10 分钟、单次使用 |
 | GET `/api/v1/nodes/{id}/status` | 管理员 Cookie | Node，包括 online/offline、版本、OS/架构、UTC 最后心跳 |
-| POST `/api/v1/nodes/{id}/tasks` | 管理员 Cookie、Origin、CSRF；`{operation,idempotency_key:UUID}`；operation 见本页 | 新任务 201，同节点/操作/幂等键重试 200；键冲突 409 |
+| POST `/api/v1/nodes/{id}/tasks` | 管理员 Cookie、CSRF；`{operation,idempotency_key:UUID}`；operation 见本页 | 新任务 201，同节点/操作/幂等键重试 200；键冲突 409 |
 | GET `/api/v1/tasks/{id}` | 管理员 Cookie | TaskRecord；超期未终结任务转 expired |
-| GET `/agent/v1/connect` | WebSocket 升级；`Authorization: Enrollment TOKEN` 或 `Bearer CREDENTIAL` | WSS 双向连接；拒绝所有查询参数、浏览器 Origin 和无效凭据 |
+| GET `/agent/v1/connect` | WebSocket 升级；`Authorization: Enrollment TOKEN` 或 `Bearer CREDENTIAL` | WSS 双向连接；拒绝所有查询参数和无效凭据 |
 
 浏览器会话不能用于 Agent 连接，节点凭据不能用于管理 API。没有读取节点凭据的浏览器接口。新 enrollment 会使此节点旧的未使用 token 失效，但直到新 token 被消费才替换旧节点凭据。消费和凭据签发在单个 SQLite 写事务中完成，长期凭据有效 365 天，可通过重新 enrollment 轮换；撤销节点同时撤销凭据、使 enrollment 失效、取消未完成任务并关闭连接。
 若签发后连接中断导致 Agent 未保存凭据，token 仍已消费；需要管理员签发新 token，不允许复用旧 token 来取回凭据。
@@ -85,19 +85,19 @@ Server 在启动/创建任务时清理 7 天前终结任务，Agent 在启动/�
 
 | 方法与路径 | 请求 | 成功响应 |
 | --- | --- | --- |
-| POST `/auth/login` | JSON `{username,password}`；准确 Origin | 200 `{admin:{id,username},csrf_token,expires_at}`，设置 HttpOnly、SameSite=Strict、默认 Secure Cookie |
+| POST `/auth/login` | JSON `{username,password}` | 200 `{admin:{id,username},csrf_token,expires_at}`，设置 HttpOnly、SameSite=Strict、默认 Secure Cookie |
 | GET `/auth/me` | Cookie | 200，与 login 相同，不返回 session token 或密码哈希 |
-| POST `/auth/logout` | Cookie、Origin、`X-CSRF-Token` | 204，撤销当前会话并清除 Cookie |
+| POST `/auth/logout` | Cookie、`X-CSRF-Token` | 204，撤销当前会话并清除 Cookie |
 | GET `/nodes` | Cookie | 200，最多 100 个未撤销节点；创建达到 100 个时返回 409 |
-| POST `/nodes` | JSON `{name}`，Cookie/Origin/CSRF | 201，Node |
+| POST `/nodes` | JSON `{name}`，Cookie/CSRF | 201，Node |
 | GET `/nodes/{id}` | UUID，Cookie | 200，Node；不存在或已撤销 404 |
-| PATCH `/nodes/{id}` | UUID、JSON `{name}`，Cookie/Origin/CSRF | 200，更新后的 Node |
-| DELETE `/nodes/{id}` | UUID，Cookie/Origin/CSRF | 204，保留记录并标记撤销，重复删除 404 |
+| PATCH `/nodes/{id}` | UUID、JSON `{name}`，Cookie/CSRF | 200，更新后的 Node |
+| DELETE `/nodes/{id}` | UUID，Cookie/CSRF | 204，保留记录并标记撤销，重复删除 404 |
 | GET `/audit` | Cookie | 200，最近 100 条审计，按创建时间/序号倒序，无凭据字段 |
 
 Node 包含 UUID id、name、status、agent_version/os/arch、last_seen_at、created_at、revoked_at；新节点初始 offline，连接后由已认证 Agent 更新观测字段。时间为 UTC Unix 秒；审计序号输出字符串。
 名称去除首尾空白后为 1–64 个 Unicode 字符且不含控制字符。管理员名为 3–64 个 ASCII 字母、数字、点、下划线或短横线。初始化密码为 12–128 字节且不含控制字符，登录输入最多 128 字节；不在 API/日志/审计返回输入密码。
-单管理员、每会话有效期 3600 秒；登录全局最多每分钟 10 次且同时最多 2 次密码校验。登录不区分不存在、禁用的账号与错误密码，均 401。未登录/过期/撤销为 401；Origin/CSRF 错误为 403；验证错误 400；JSON 媒体类型错误 415；请求体超过 16 KiB 为 413；限流 429；数据库故障 500，均采用统一错误结构。
+单管理员、每会话有效期 3600 秒；登录全局最多每分钟 10 次且同时最多 2 次密码校验。登录不区分不存在、禁用的账号与错误密码，均 401。未登录/过期/撤销为 401；CSRF 错误为 403；验证错误 400；JSON 媒体类型错误 415；请求体超过 16 KiB 为 413；限流 429；数据库故障 500，均采用统一错误结构。
 
 明文 HTTP 仍仅允许 loopback；配置证书后的 HTTPS 可使用显式配置的监听地址和浏览器来源。
 

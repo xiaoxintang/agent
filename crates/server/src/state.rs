@@ -17,7 +17,6 @@ pub struct AppState {
 }
 
 pub(crate) struct Security {
-    pub origin: String,
     pub secure_cookie: bool,
     pub dummy_hash: String,
     pub password_slots: Arc<Semaphore>,
@@ -25,11 +24,7 @@ pub(crate) struct Security {
 }
 
 impl AppState {
-    pub async fn new(
-        pool: SqlitePool,
-        origin: String,
-        secure_cookie: bool,
-    ) -> Result<Self, AppError> {
+    pub async fn new(pool: SqlitePool, secure_cookie: bool) -> Result<Self, AppError> {
         let dummy_hash = hash_password(crate::auth::random_token()).await?;
         sqlx::query(
             "UPDATE nodes SET status = 'offline', connection_id = NULL WHERE revoked_at IS NULL",
@@ -42,7 +37,6 @@ impl AppState {
             agent_slots: Arc::new(Semaphore::new(128)),
             tls_enabled: false,
             security: Arc::new(Security {
-                origin,
                 secure_cookie,
                 dummy_hash,
                 password_slots: Arc::new(Semaphore::new(2)),

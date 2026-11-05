@@ -43,7 +43,7 @@ HTML 使用 `no-cache`；带 Vite 内容散列的静态文件使用一年 immuta
 ts-rs 从 Rust 生成健康、认证、节点、指标、enrollment、任务和审计类型，CI 比较生成结果与提交文件。健康响应保留运行时形状校验。认证状态保存在 TanStack Query 内存，密码和 enrollment token 不进入 Mutation Cache、localStorage 或 sessionStorage；登出/会话失效后清理节点、指标、任务与审计缓存。
 
 SQLite/SQLx 采用 bundled SQLite（不启用动态扩展加载）、WAL、外键、5 秒 busy timeout 和最多 4 个连接，MVP 只支持单个 Server 写入进程。五次迁移编译进二进制，不要求运行目录包含 SQL 文件。还包括 inbounds、全局 clients、client_assignments、config_revisions、流量基线/累计/小时聚合。私有期望配置只在私有 DB 与 WSS/helper 通道流转，公开 REST 和 TS 视图不含私钥。
-首次管理员由本地 `panel-server init-admin` 创建，数据库唯一约束保证单管理员，后续 Installer 可复用此入口。密码采用 Argon2id；随机会话仅存 SHA-256 哈希，Cookie 持有原文。CSRF token 从会话原文通过带域前缀的 SHA-256 派生，状态修改同时校验 Origin 和 CSRF。
+首次管理员由本地 `panel-server init-admin` 创建，数据库唯一约束保证单管理员，后续 Installer 可复用此入口。密码采用 Argon2id；随机会话仅存 SHA-256 哈希，Cookie 持有原文。CSRF token 从会话原文通过带域前缀的 SHA-256 派生，状态修改校验 CSRF，不检查请求 Origin。
 节点记录与审计在同一 SQLite 事务内写入；删除是撤销，保留审计关联。当前最多 100 个未撤销节点，审计查询最多返回 100 条。审计保留 90 天，在启动/审计写入时物理清理，读取也过滤超期记录。clients 已按全局身份建模，配置修订与流量基线/聚合在对应迁移中实现。
 
 enrollment 只存 token 哈希，10 分钟、单次消费；消费及节点凭据轮换原子提交，浏览器只得到一次性 enrollment token，长期凭据仅经 WSS 发给 Agent 并存其私有身份库。凭据有效 365 天；撤销会终止连接、使 enrollment 和未完成任务失效。

@@ -7,3 +7,4 @@ pub mod wizard;
 pub mod bundle;
 
 pub mod deployment;
+pub mod release;

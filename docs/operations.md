@@ -42,7 +42,7 @@ PANEL_DEV_HTTP=1 ./target/release/panel-server
 | `PANEL_TLS_CERT` / `PANEL_TLS_KEY` | 未设置 | 必须一起提供，启用 rustls HTTPS；私钥文件仅所属用户可读写，例如 0600 |
 
 默认 Cookie 名为 `__Host-panel_session`，包含 Secure、HttpOnly、SameSite=Strict、Path=/，不设置 Domain；本机开发模式改用 `panel_session`，其余属性保持。默认安全 Cookie 模式不保证浏览器接受纯 HTTP 上的 Cookie；HTTP 浏览器开发必须显式使用 `PANEL_DEV_HTTP=1`。
-Vite 开发模式设置 `PANEL_ORIGIN=http://127.0.0.1:5173`，浏览器也使用这个准确地址；Vite 代理 `/api` 和 `/agent`。不要通过端口转发或代理公开明文开发服务。
+Vite 开发模式代理 `/api` 和 `/agent`，可以修改代理目标以连接远程 Server。Server 不校验请求 Origin；不要通过端口转发或代理公开明文开发服务。
 
 ## HTTPS 与 Agent
 
@@ -95,8 +95,8 @@ python3 scripts/verify-linux.py --bin-dir target/release
 ## 会话、节点与审计
 
 会话固定 1 小时，到期后重新登录；成功登录会旋转请求中已有的会话 Cookie。退出只撤销当前会话。尚无修改密码、管理其他会话或多管理员功能。
-管理 API 都要求会话；修改还需准确 Origin 和 `X-CSRF-Token`。登录及 `/auth/me` 返回 CSRF token，客户端只在内存使用，不存储会话 token。
-登录全局每分钟最多 10 次（含已通过 Origin 校验的无效 JSON 请求），最多同时校验 2 个密码；限流不依赖 Redis，重启会重置内存计数。
+管理 API 都要求会话；修改还需 `X-CSRF-Token`，不校验请求 Origin。登录及 `/auth/me` 返回 CSRF token，客户端只在内存使用，不存储会话 token。
+登录全局每分钟最多 10 次（包括无效 JSON 请求），最多同时校验 2 个密码；限流不依赖 Redis，重启会重置内存计数。
 最多 100 个未撤销节点；创建后为 offline，只有认证连接及心跳才更新 online 和观测信息。撤销保留数据库记录和审计，不执行远程卸载。
 审计只保存动作、结果、账号/节点 ID、时间及请求 ID，保留 90 天。启动或每次写入审计时清理过期记录，空闲时不会定时擦除；查询始终过滤超期记录并只返回最近 100 条。过期/撤销会话在启动及成功登录时清理。
 
@@ -130,17 +130,19 @@ Agent 每 15 秒采样，以固定 `xray.service` 的 systemd InvocationID 标�
 
 安装向导先选择组件：`Server + Agent` 同机安装面板与节点，`Server` 仅安装面板，`Agent` 仅安装节点并连接已有面板。接着选择配置模式：`Quick` 使用默认数据目录并启用开机启动；`Custom` 允许调整数据目录和开机启动。两种模式都需要配置连接和管理员信息。选择不启用 HTTPS 时可通过 IP 地址使用 HTTP 访问，需填写浏览器实际访问的完整 IP 和端口；密码、会话和传输数据均可能被窃听。同机 Agent 使用 loopback WS，远程 Agent 仍须使用 WSS。
 
-HTTP 向导会根据监听地址或本机路由推荐 IPv4 和监听端口；该值可以修改。NAT 后的公网 IP 或端口可能与推荐值不同，必须填写浏览器实际使用的 Origin。首次同机安装成功注册 Agent 后自动关联本机节点；已有安装可在节点管理中手动设置，关联由所有管理员共享。资源、Xray、配置、流量和 Agent 页面均针对该本机节点。
+HTTP 向导在非回环监听时会通过 ipify 查询出口公网 IPv4，失败时根据监听地址或本机路由推荐 IPv4；端口使用监听端口。该查询会向 ipify 暴露服务器出口 IP。推荐值可以修改，代理、NAT 或端口映射可能使实际访问地址不同。首次同机安装成功注册 Agent 后自动关联本机节点；已有安装可在节点管理中手动设置，关联由所有管理员共享。资源、Xray、配置、流量和 Agent 页面均针对该本机节点。
 
-认证后的 `GET /api/v1/local-node` 返回 `{"node_id":字符串或null}`；`PUT /api/v1/local-node/{id}` 将有效节点设为本机，要求会话、Origin 和 CSRF，并写入审计。撤销本机节点会清除关联。
+认证后的 `GET /api/v1/local-node` 返回 `{"node_id":字符串或null}`；`PUT /api/v1/local-node/{id}` 将有效节点设为本机，要求会话和 CSRF，并写入审计。撤销本机节点会清除关联。
 
-先取得经可信发布渠道验证的 bundle。`scripts/package.py` 只打包已有 Linux ELF，不自动构建；`bundle.json` 固定版本、架构和三个二进制摘要。Installer 的 `--bundle-sha256` 是**元数据文件**摘要，必须从已经认证的发布/交付渠道取得；bootstrap 的 `--sha256` 则是**整个压缩包**摘要，两者不可混用。不能把同一不可信下载旁的 checksum 当作独立信任锚。
+先取得经可信发布渠道验证的 bundle。`scripts/package.py` 只打包已有 Linux ELF，不自动构建；`bundle.json` 固定版本、架构和三个二进制摘要。Installer 的 `--bundle-sha256` 可选，提供时须从已经认证的发布/交付渠道取得，它是**元数据文件**摘要；不提供时无法验证元数据的来源，包内摘要只能检查文件与元数据是否一致。bootstrap 的 `--sha256` 则是**整个压缩包**摘要，两者不可混用。不能把同一不可信下载旁的 checksum 当作独立信任锚。
+
+不指定 bundle 的 `panel-installer upgrade` 会从 GitHub 查询并下载最新正式发布，按本机架构升级已安装的组件。该自动流程依赖 GitHub HTTPS 和包内摘要，**不验证 Sigstore 签名**；需要签名验证时应按发布验证说明手动验证下载包，再使用 `--bundle` 和 `--version` 升级。
 
 ```sh
 sudo ./panel-installer install --bundle /root/panel-bundle --bundle-sha256 TRUSTED_BUNDLE_JSON_SHA256
 # 无子命令且有 TTY 时也可进入菜单；向导显示计划并确认。
 sudo panel-installer status
-sudo panel-installer upgrade --component all --bundle /root/new-bundle --bundle-sha256 TRUSTED_NEW_METADATA_SHA256 --version 0.1.0
+sudo panel-installer upgrade
 sudo panel-installer repair --component all
 ```
 
@@ -170,7 +172,7 @@ sudo panel-installer repair --component all
 sudo ./panel-installer install --component all --non-interactive --config /root/panel-install.json --bundle /root/panel-bundle --bundle-sha256 TRUSTED_BUNDLE_JSON_SHA256
 ```
 
-安装器不会覆盖已有管理员；重复 install 拒绝替换已安装组件，使用 upgrade/repair。二进制和 unit/config 的归属、摘要保存在 `/var/lib/panel-installer/manifest.json`；服务数据另有归属标记。升级停下所选服务，备份静态文件与 SQLite/WAL，原子激活后实际启动并检查 HTTPS/服务状态；失败恢复原文件、身份和数据。持久 journal 在下一次 status/repair/维护命令执行时恢复未完成事务。不要删除 manifest 或检查点来绕过拒绝；未知文件、软链接、外来 unit/drop-in 会使操作停止。
+安装器不会覆盖已有管理员；重复 install 拒绝替换已安装组件，使用 upgrade/repair。普通卸载后重新交互安装时，向导读取保留设置作为默认值；密码和注册令牌不会保存，仍需重新输入。二进制和 unit/config 的归属、摘要保存在 `/var/lib/panel-installer/manifest.json`；服务数据另有归属标记。升级停下所选服务，备份静态文件与 SQLite/WAL，原子激活后实际启动并检查 HTTPS/服务状态；失败恢复原文件、身份和数据。持久 journal 在下一次 status/repair/维护命令执行时恢复未完成事务。不要删除 manifest 或检查点来绕过拒绝；未知文件、软链接、外来 unit/drop-in 会使操作停止。
 
 手动 TLS 私钥原件在 `/etc/panel` 为 root-owned 0600。systemd credential 交给服务后，Server 在 0700 RuntimeDirectory 中获得 0600 临时副本，保持 Server 的严格私钥权限校验。Xray 验证由有 10 秒/128 MiB 限额的独立 DynamicUser 临时 unit 完成；通过私有 credential 读取 JSON，验证任务自动回收，helper 沙箱不获得 CAP_SETUID。
 

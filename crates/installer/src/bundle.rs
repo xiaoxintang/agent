@@ -105,7 +105,18 @@ pub fn load(directory: &Path, expected: Option<&str>) -> Result<Bundle> {
     {
         return Err("Bundle metadata checksum mismatch".into());
     }
-    let metadata: Metadata = serde_json::from_slice(&bytes)?;
+    let mut files = BTreeMap::new();
+    for name in BINARIES {
+        files.insert(
+            name.to_owned(),
+            read(&path.join(name), 128 * 1024 * 1024, false)?,
+        );
+    }
+    validate_bytes(&bytes, files)
+}
+
+pub(crate) fn validate_bytes(bytes: &[u8], files: BTreeMap<String, Vec<u8>>) -> Result<Bundle> {
+    let metadata: Metadata = serde_json::from_slice(bytes)?;
     if metadata.format != 1
         || metadata.arch != std::env::consts::ARCH
         || metadata.files.len() != 3
@@ -117,11 +128,13 @@ pub fn load(directory: &Path, expected: Option<&str>) -> Result<Bundle> {
     {
         return Err("Unsupported bundle metadata/version/architecture".into());
     }
-    let mut binaries = BTreeMap::new();
+    if files.len() != BINARIES.len() {
+        return Err("Unexpected bundle files".into());
+    }
     for name in BINARIES {
         let digest = metadata.files.get(name).ok_or("Missing required binary")?;
-        let content = read(&path.join(name), 128 * 1024 * 1024, false)?;
-        if crate::xray::lifecycle::hash(&content) != *digest
+        let content = files.get(name).ok_or("Missing required binary")?;
+        if crate::xray::lifecycle::hash(content) != *digest
             || content.len() < 20
             || &content[..4] != b"\x7fELF"
             || content[4] != 2
@@ -133,11 +146,10 @@ pub fn load(directory: &Path, expected: Option<&str>) -> Result<Bundle> {
         if machine != if metadata.arch == "x86_64" { 62 } else { 183 } {
             return Err("ELF architecture mismatch".into());
         }
-        binaries.insert(name.into(), content);
     }
     Ok(Bundle {
         metadata,
-        bytes: binaries,
+        bytes: files,
     })
 }
 pub fn cache_path(version: &str) -> PathBuf {

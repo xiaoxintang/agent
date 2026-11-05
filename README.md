@@ -21,7 +21,7 @@ sudo sh bootstrap.sh
 
 ```sh
 sudo panel-installer status
-sudo panel-installer upgrade --component all --bundle /root/panel-bundle --bundle-sha256 TRUSTED_BUNDLE_JSON_SHA256 --version 0.1.0
+sudo panel-installer upgrade
 sudo panel-installer repair --component all
 sudo panel-installer uninstall --component all
 ```
@@ -59,7 +59,7 @@ PANEL_DEV_HTTP=1 PANEL_ORIGIN=http://127.0.0.1:5173 ./target/release/panel-serve
 pnpm --dir web run dev
 ```
 
-打开 <http://127.0.0.1:5173>。Vite 把 `/api` 和 Agent WebSocket 请求代理到本机 Server；浏览器 Origin 必须与 `PANEL_ORIGIN` 一致。Agent 本地开发需要显式启用 loopback 明文连接：
+打开 <http://127.0.0.1:5173>。Vite 把 `/api` 和 Agent WebSocket 请求代理到本机 Server，也可以通过修改代理目标连接远程 Server。Agent 本地开发需要显式启用 loopback 明文连接：
 
 ```sh
 ./target/release/panel-agent --allow-local-ws --data-dir ./agent-data enroll --server ws://127.0.0.1:8080/agent/v1/connect

@@ -36,7 +36,7 @@ impl AppError {
         Self::new(
             StatusCode::FORBIDDEN,
             "csrf_failed",
-            "Origin or CSRF validation failed",
+            "CSRF validation failed",
         )
     }
     pub const fn internal() -> Self {

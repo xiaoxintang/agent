@@ -2,12 +2,12 @@
 
 ## Phase 7 已实施
 
-- HTTP 默认绑定 `127.0.0.1:8080`；显式设置 `PANEL_PUBLIC_HTTP=1` 可允许公网明文，密码、会话及节点通信均可能被窃听。HTTPS/WSS 支持手动证书或 ACME 自动证书，公开监听必须配置准确 Origin。Vite 仅绑定本机。
+- HTTP 默认绑定 `127.0.0.1:8080`；显式设置 `PANEL_PUBLIC_HTTP=1` 可允许公网明文，密码、会话及节点通信均可能被窃听。HTTPS/WSS 支持手动证书或 ACME 自动证书，公开监听仍需配置服务地址，ACME 域名必须与其匹配。Vite 仅绑定本机。
 - 健康接口仅返回状态和软件版本，不返回环境变量、文件路径、凭据或节点数据。
 - 管理员只能通过本地 `init-admin` 初始化，无默认密码，不能覆盖已有管理员，不开放 HTTP 首次设置。交互密码不回显，自动化只通过显式 stdin 读取。
 - 密码使用带随机盐的 Argon2id v19；验证在有界 blocking 任务中执行。不存在/禁用的用户与错误密码使用同一错误，未知用户也执行等成本哈希验证。
 - 会话原文只放在 HttpOnly、SameSite=Strict、默认 Secure 的 Cookie，数据库只保存 SHA-256 哈希，有效期 1 小时；登出撤销当前会话，登录旋转已有 Cookie，禁用管理员立即拒绝其会话。
-- 状态修改要求准确 Origin 和绑定当前会话的 CSRF token，固定时间比较。登录要求准确 Origin、JSON 媒体类型；不接受跨站 Fetch、重复会话 Cookie、重复 Origin 或 CSRF 头。
+- 状态修改要求绑定当前会话的 CSRF token，固定时间比较；登录要求 JSON 媒体类型，不接受重复会话 Cookie 或 CSRF 头。不校验请求 Origin 或 Fetch Metadata，来源防护层已移除，部署时应限制代理和网络访问。
 - 登录全局每分钟最多 10 次、同时最多 2 次密码验证，请求体最多 16 KiB。所有业务 API 禁用缓存，所有响应生成新的请求 ID，不信任客户端传入 ID。
 - 管理 API 都校验有效会话；节点修改与审计在同一事务中提交，审计失败则业务修改回滚。审计不保存密码、Cookie、会话哈希、CSRF token 或请求体。
 - 数据目录新建权限为 0700，SQLite 文件为 0600，拒绝组/其他用户可访问及直接符号链接的数据路径；SQLite 使用 bundled 构建，不开启动态扩展加载。
@@ -15,7 +15,7 @@
 - enrollment token 只返回一次、10 分钟、单次使用，消费和凭据轮换在同一事务。节点凭据有效 365 天，Server 只存哈希，原文仅经已认证 WSS 发给 Agent；浏览器没有读取长期凭据的接口。
 - Agent 私有 SQLite 保存身份与任务 receipt，目录 0700、文件 0600，文件锁禁止同目录并发进程。凭据不得置于 URL、命令行参数、日志或审计中；认证 header 标记 sensitive，错误输出脱敏。
 - Agent 验证正常的 TLS 证书链、主机名和有效期，私有 CA 只能显式添加可信证书，不支持 insecure 跳过验证。WS 明文例外需双方明确开启且仅限字面 loopback IP；不能用该开关跳过 WSS 证书验证。TLS 私钥拒绝组/其他用户可访问权限。
-- WebSocket 拒绝查询参数与浏览器 Origin；当前协议 v6、UUID、UTC/时钟窗口、连接绑定身份和 64 KiB 帧/消息限制均校验。每节点只有最新连接可更新状态，45 秒无心跳关闭并标离线。升级时 Server/Agent 必须同步。
+- WebSocket 拒绝查询参数并要求节点凭据，不校验 Origin；当前协议 v6、UUID、UTC/时钟窗口、连接绑定身份和 64 KiB 帧/消息限制均校验。每节点只有最新连接可更新状态，45 秒无心跳关闭并标离线。升级时 Server/Agent 必须同步。
 - Server 总连接上限 128，每节点最多 100 个有效待执行任务，串行分发，有固定截止时间和重试上限时间窗；Agent 持久去重并拒绝相同 ID 不同 payload。崩溃中不确定任务为 interrupted，不会自动重做。
 - 任务使用封闭枚举：AgentStatus、固定服务只读状态、受管 Xray 生命周期和权威配置修订。Server/Agent 共同拒绝任意 unit/method、shell 或其他系统服务的变更。去重的副作用计数只存在于明确标记的测试执行器。节点撤销会关闭连接、撤销凭据、使 enrollment 失效并取消未完成任务。
 - Linux systemd 查询通过 zbus 的固定 GetUnit 和三个状态属性，无 sudo、polkit 授权或 root helper；Agent 的只读查询没有 LoadUnit/StartUnit/StopUnit/RestartUnit 调用路径；Xray 变更通过独立受限 helper。未加载明确报告 not_loaded，不冒充 active 或未安装。
@@ -34,7 +34,7 @@
 - Agent 无参数仍只输出版本，enroll/run 仅写自身私有目录、读取本机指标/服务状态并出站连接；以普通用户运行，不获取 root 权限。Installer 提供真实 install/upgrade/repair/uninstall/status，只有本机 root 可维护归属已验证的固定部署；普通卸载保留数据，purge 需要准确文字确认。
 - Cargo/pnpm 锁文件固定依赖解析，CI 使用 `--locked`/`pnpm install --frozen-lockfile`；pnpm 版本由 `packageManager` 固定，GitHub Actions 固定 SHA；常规 CI 仅读仓库，发布 job 单独持有 release 写入和短期 OIDC 权限。
 
-本阶段验证包含迁移幂等、外键/权限、首次初始化、鉴权、会话撤销/过期、CSRF/Origin、限流、并发写入、脱敏、审计原子性及保留策略，并保留原有静态资源与 CLI 安全测试。
+本阶段验证包含迁移幂等、外键/权限、首次初始化、鉴权、会话撤销/过期、CSRF、限流、并发写入、脱敏、审计原子性及保留策略，并保留原有静态资源与 CLI 安全测试。
 
 ## 当前限制
 

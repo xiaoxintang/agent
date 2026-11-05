@@ -64,14 +64,14 @@ pub struct InstallArgs {
 }
 #[derive(Args)]
 pub struct UpgradeArgs {
-    #[arg(long, value_enum, default_value = "all")]
-    pub component: Component,
-    #[arg(long)]
-    pub bundle: PathBuf,
-    #[arg(long)]
-    pub bundle_sha256: String,
-    #[arg(long)]
-    pub version: String,
+    #[arg(long, value_enum)]
+    pub component: Option<Component>,
+    #[arg(long, requires = "version")]
+    pub bundle: Option<PathBuf>,
+    #[arg(long, requires = "bundle")]
+    pub bundle_sha256: Option<String>,
+    #[arg(long, requires = "bundle")]
+    pub version: Option<String>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -117,4 +117,46 @@ pub struct Input {
     pub settings: Settings,
     pub admin_password: Option<String>,
     pub enrollment_token: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Action, Cli};
+    use clap::Parser;
+
+    #[test]
+    fn upgrade_accepts_optional_bundle_checksum() {
+        let Action::Upgrade(latest) = Cli::try_parse_from(["panel-installer", "upgrade"])
+            .unwrap()
+            .command
+            .unwrap()
+        else {
+            panic!("expected upgrade");
+        };
+        assert!(latest.bundle.is_none());
+        assert!(latest.component.is_none());
+        assert!(Cli::try_parse_from(["panel-installer", "upgrade", "--version", "1.0"]).is_err());
+        assert!(
+            Cli::try_parse_from(["panel-installer", "upgrade", "--bundle", "/bundle"]).is_err()
+        );
+        for (arguments, expected) in [
+            (vec![], None),
+            (vec!["--bundle-sha256", "trusted"], Some("trusted")),
+        ] {
+            let mut command = vec![
+                "panel-installer",
+                "upgrade",
+                "--bundle",
+                "/bundle",
+                "--version",
+                "1.0",
+            ];
+            command.extend(arguments);
+            let Action::Upgrade(args) = Cli::try_parse_from(command).unwrap().command.unwrap()
+            else {
+                panic!("expected upgrade");
+            };
+            assert_eq!(args.bundle_sha256.as_deref(), expected);
+        }
+    }
 }

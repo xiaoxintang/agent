@@ -113,28 +113,13 @@ fn cookie_token(headers: &HeaderMap, state: &AppState) -> Option<String> {
     Some(value.to_owned())
 }
 
-fn require_origin(headers: &HeaderMap, state: &AppState) -> Result<(), AppError> {
-    let mut origins = headers.get_all(header::ORIGIN).iter();
-    let origin = origins.next().and_then(|header| header.to_str().ok());
-    if origins.next().is_some()
-        || origin != Some(state.security.origin.as_str())
-        || headers
-            .get("sec-fetch-site")
-            .is_some_and(|value| value == "cross-site")
-    {
-        return Err(AppError::forbidden());
-    }
-    Ok(())
-}
-
 pub struct LoginGuard;
 impl FromRequestParts<AppState> for LoginGuard {
     type Rejection = AppError;
     async fn from_request_parts(
-        parts: &mut Parts,
+        _parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        require_origin(&parts.headers, state)?;
         state.security.login_attempt()?;
         Ok(Self)
     }
@@ -166,7 +151,6 @@ impl FromRequestParts<AppState> for Session {
             .bind(token_hash(&token)).bind(db::now()).fetch_optional(&state.pool).await?.ok_or_else(AppError::unauthorized)?;
         let csrf_token = token_hash(&format!("csrf:v1:{token}"));
         if !parts.method.is_safe() {
-            require_origin(&parts.headers, state)?;
             let mut headers = parts.headers.get_all("x-csrf-token").iter();
             let supplied = headers
                 .next()

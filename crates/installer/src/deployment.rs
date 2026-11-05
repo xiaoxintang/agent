@@ -112,6 +112,20 @@ fn load() -> Result<Option<Manifest>> {
     }
     Ok(Some(state))
 }
+pub(crate) fn retained_settings(component: Component) -> Result<Option<Settings>> {
+    Ok(load()?.and_then(|state| state.retained_settings(component)))
+}
+impl Manifest {
+    fn retained_settings(self, component: Component) -> Option<Settings> {
+        let retained_server = component.server()
+            && !self.versions.contains_key(&Component::Server)
+            && self.accounts.contains_key("panel-server");
+        let retained_agent = component.agent()
+            && !self.versions.contains_key(&Component::Agent)
+            && self.accounts.contains_key("panel-agent");
+        (retained_server || retained_agent).then_some(self.settings)
+    }
+}
 fn managed_path(path: &Path) -> bool {
     let Some(path) = path.to_str() else {
         return false;
@@ -1297,6 +1311,18 @@ pub async fn install(mut input: Input, component: Component, bundle: Bundle) -> 
     );
     Ok(())
 }
+pub fn installed_component() -> Result<Component> {
+    let state = load()?.ok_or("No owned installation")?;
+    match (
+        state.versions.contains_key(&Component::Server),
+        state.versions.contains_key(&Component::Agent),
+    ) {
+        (true, true) => Ok(Component::All),
+        (true, false) => Ok(Component::Server),
+        (false, true) => Ok(Component::Agent),
+        (false, false) => Err("No installed components".into()),
+    }
+}
 pub async fn upgrade(component: Component, bundle: Bundle, version: &str) -> Result<()> {
     crate::platform::detect()?;
     if bundle.metadata.version != version {
@@ -1641,26 +1667,42 @@ pub fn maintenance_worker() -> Result<Option<std::process::ExitStatus>> {
         return Ok(None);
     }
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
-    if !args.first().is_some_and(|arg| {
-        matches!(
-            arg.to_str(),
-            Some("install" | "upgrade" | "repair" | "uninstall")
-        )
-    }) {
+    if !(args.is_empty() && std::io::IsTerminal::is_terminal(&std::io::stdin()))
+        && !args.first().is_some_and(|arg| {
+            matches!(
+                arg.to_str(),
+                Some("install" | "upgrade" | "repair" | "uninstall")
+            )
+        })
+    {
         return Ok(None);
     }
     crate::platform::detect()?;
-    bundle::secure(&current, false)?;
+    let bytes = bundle::read(&current, 128 * 1024 * 1024, false)?;
+    run_maintenance_copy(&bytes, Path::new("/usr/local/bin"), &args).map(Some)
+}
+fn run_maintenance_copy(
+    bytes: &[u8],
+    directory: &Path,
+    args: &[std::ffi::OsString],
+) -> Result<std::process::ExitStatus> {
     let temp = tempfile::Builder::new()
         .prefix("panel-maintenance-")
-        .tempdir_in("/run")?;
+        .tempdir_in(directory)?;
     lifecycle::mode(temp.path(), 0o700).map_err(io)?;
     let executable = temp.path().join("panel-installer");
-    fs::copy(current, &executable)?;
+    fs::write(&executable, bytes)?;
     lifecycle::mode(&executable, 0o700).map_err(io)?;
-    Ok(Some(
-        std::process::Command::new(executable).args(args).status()?,
-    ))
+    std::process::Command::new(&executable)
+        .args(args)
+        .status()
+        .map_err(|error| {
+            format!(
+                "Failed to execute temporary maintenance copy in {}: {error}",
+                directory.display()
+            )
+            .into()
+        })
 }
 
 fn purge_xray() -> Result<()> {
@@ -1788,6 +1830,33 @@ fn purge_control() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn maintenance_copy_runs_and_cleans_up_in_executable_directory() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = fs::read("/usr/bin/true").unwrap();
+        let status = run_maintenance_copy(&executable, directory.path(), &[]).unwrap();
+        assert!(status.success());
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
+    }
+    #[test]
+    fn retained_settings_require_an_uninstalled_owned_component() {
+        let mut state = Manifest {
+            format: 1,
+            id: uuid::Uuid::new_v4().to_string(),
+            settings: Settings::default(),
+            files: BTreeMap::new(),
+            accounts: BTreeMap::new(),
+            versions: BTreeMap::new(),
+        };
+        assert!(state.clone().retained_settings(Component::Server).is_none());
+        state
+            .accounts
+            .insert("panel-server".into(), Account { uid: 1, gid: 1 });
+        assert!(state.clone().retained_settings(Component::Server).is_some());
+        assert!(state.clone().retained_settings(Component::Agent).is_none());
+        state.versions.insert(Component::Server, "1.0".into());
+        assert!(state.retained_settings(Component::Server).is_none());
+    }
     #[test]
     fn deployment_validates_http_injection_traversal_and_root_data_paths() {
         let mut settings = Settings::default();

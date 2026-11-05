@@ -26,9 +26,7 @@ impl TestApp {
         auth::bootstrap_admin(&pool, "admin", PASSWORD.into())
             .await
             .unwrap();
-        let state = AppState::new(pool.clone(), ORIGIN.into(), secure)
-            .await
-            .unwrap();
+        let state = AppState::new(pool.clone(), secure).await.unwrap();
         Self {
             router: app::router(state),
             pool,
@@ -372,7 +370,7 @@ async fn development_cookie_omits_secure_only_when_explicitly_requested() {
 }
 
 #[tokio::test]
-async fn login_requires_the_exact_origin_and_uses_generic_credential_errors() {
+async fn login_accepts_any_origin_and_uses_generic_credential_errors() {
     let app = TestApp::new(true).await;
     for origin in [None, Some("http://evil.example"), Some("null")] {
         let headers = origin
@@ -386,7 +384,7 @@ async fn login_requires_the_exact_origin_and_uses_generic_credential_errors() {
                 &headers,
             )
             .await;
-        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        assert_eq!(response.status(), StatusCode::OK);
     }
     let mut errors = Vec::new();
     for (username, password) in [("admin", "wrong"), ("missing-user", PASSWORD)] {
@@ -421,7 +419,7 @@ async fn login_requires_the_exact_origin_and_uses_generic_credential_errors() {
 }
 
 #[tokio::test]
-async fn mutations_require_both_origin_and_the_session_bound_csrf_token() {
+async fn mutations_require_the_session_bound_csrf_token_without_origin_checks() {
     let app = TestApp::new(true).await;
     let (cookie, csrf) = app.login().await;
     for headers in [
@@ -431,17 +429,6 @@ async fn mutations_require_both_origin_and_the_session_bound_csrf_token() {
             ("cookie", cookie.as_str()),
             ("origin", ORIGIN),
             ("x-csrf-token", "wrong"),
-        ],
-        vec![
-            ("cookie", cookie.as_str()),
-            ("origin", "http://evil.example"),
-            ("x-csrf-token", csrf.as_str()),
-        ],
-        vec![
-            ("cookie", cookie.as_str()),
-            ("origin", ORIGIN),
-            ("x-csrf-token", csrf.as_str()),
-            ("sec-fetch-site", "cross-site"),
         ],
     ] {
         let response = app
@@ -475,6 +462,25 @@ async fn mutations_require_both_origin_and_the_session_bound_csrf_token() {
             .unwrap(),
         0
     );
+    for headers in [
+        vec![("cookie", cookie.as_str()), ("x-csrf-token", csrf.as_str())],
+        vec![
+            ("cookie", cookie.as_str()),
+            ("origin", "http://evil.example"),
+            ("x-csrf-token", csrf.as_str()),
+            ("sec-fetch-site", "cross-site"),
+        ],
+    ] {
+        let response = app
+            .request(
+                "POST",
+                "/api/v1/nodes",
+                Some(json!({"name":"node"})),
+                &headers,
+            )
+            .await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+    }
     app.pool.close().await;
 }
 

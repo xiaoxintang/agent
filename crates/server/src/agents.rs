@@ -79,9 +79,6 @@ struct Identity {
 }
 
 async fn authenticate(state: &AppState, headers: &HeaderMap) -> Result<Identity, AppError> {
-    if headers.contains_key("origin") {
-        return Err(AppError::forbidden());
-    }
     let mut values = headers.get_all("authorization").iter();
     let value = values
         .next()

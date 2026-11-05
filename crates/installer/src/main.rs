@@ -36,23 +36,12 @@ async fn main() -> Result<()> {
                     non_interactive: false,
                     config: None,
                 }),
-                1 => {
-                    let directory: String = dialoguer::Input::new()
-                        .with_prompt("Verified bundle directory")
-                        .interact_text()?;
-                    let digest: String = dialoguer::Input::new()
-                        .with_prompt("Trusted bundle.json SHA-256")
-                        .interact_text()?;
-                    let version: String = dialoguer::Input::new()
-                        .with_prompt("Exact version")
-                        .interact_text()?;
-                    Action::Upgrade(panel_installer::cli::UpgradeArgs {
-                        component: panel_installer::cli::Component::All,
-                        bundle: directory.into(),
-                        bundle_sha256: digest,
-                        version,
-                    })
-                }
+                1 => Action::Upgrade(panel_installer::cli::UpgradeArgs {
+                    component: None,
+                    bundle: None,
+                    bundle_sha256: None,
+                    version: None,
+                }),
                 2 => Action::Repair {
                     component: panel_installer::cli::Component::All,
                 },
@@ -100,7 +89,7 @@ async fn main() -> Result<()> {
             } else if let Some(config) = &args.config {
                 serde_json::from_slice(&bundle::read(config, 16384, true)?)?
             } else {
-                wizard::install(&mut args)?
+                wizard::install(&mut args).await?
             };
             deployment::validate(&input.settings, args.component)?;
             if !args.non_interactive {
@@ -113,12 +102,20 @@ async fn main() -> Result<()> {
             deployment::install(input, args.component, artifacts).await?;
         }
         Action::Upgrade(args) => {
-            deployment::upgrade(
-                args.component,
-                bundle::load(&args.bundle, Some(&args.bundle_sha256))?,
-                &args.version,
-            )
-            .await?
+            panel_installer::platform::detect()?;
+            let component = match args.component {
+                Some(component) => component,
+                None => deployment::installed_component()?,
+            };
+            let artifacts = if let Some(path) = &args.bundle {
+                bundle::load(path, args.bundle_sha256.as_deref())?
+            } else {
+                panel_installer::release::latest().await?
+            };
+            let version = args
+                .version
+                .unwrap_or_else(|| artifacts.metadata.version.clone());
+            deployment::upgrade(component, artifacts, &version).await?
         }
         Action::Repair { component } => deployment::repair(component).await?,
         Action::Uninstall {
