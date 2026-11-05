@@ -1667,13 +1667,12 @@ pub fn maintenance_worker() -> Result<Option<std::process::ExitStatus>> {
         return Ok(None);
     }
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
-    if !(args.is_empty() && std::io::IsTerminal::is_terminal(&std::io::stdin()))
-        && !args.first().is_some_and(|arg| {
-            matches!(
-                arg.to_str(),
-                Some("install" | "upgrade" | "repair" | "uninstall")
-            )
-        })
+    if !(args.first().is_some_and(|arg| {
+        matches!(
+            arg.to_str(),
+            Some("install" | "upgrade" | "repair" | "uninstall")
+        )
+    }) || args.is_empty() && std::io::IsTerminal::is_terminal(&std::io::stdin()))
     {
         return Ok(None);
     }
