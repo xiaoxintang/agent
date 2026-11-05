@@ -199,10 +199,16 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       '@vitejs/plugin-react':
         specifier: 6.2.1
-        version: 6.2.1(vite@8.3.5(@types/node@22.20.5))
+        version: 6.2.1(vite@8.3.5(@types/node@22.20.5)(yaml@2.9.1))
+      husky:
+        specifier: 9.1.7
+        version: 9.1.7
       jsdom:
         specifier: 30.1.3
         version: 30.1.3
+      lint-staged:
+        specifier: 17.6.0
+        version: 17.6.0
       oxfmt:
         specifier: 0.75.0
         version: 0.75.0
@@ -214,10 +220,10 @@ importers:
         version: 6.0.3
       vite:
         specifier: 8.3.5
-        version: 8.3.5(@types/node@22.20.5)
+        version: 8.3.5(@types/node@22.20.5)(yaml@2.9.1)
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@22.20.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@22.20.5))
+        version: 5.1.0(@types/node@22.20.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@22.20.5)(yaml@2.9.1))
 
 packages:
 
@@ -1161,6 +1167,11 @@ packages:
     resolution: {integrity: sha512-UikN5yr7xsCDAq87Or5or0PAlD3HJJOKVzM05az588WnpDJ4Ux7a2A53Qi6gofGg2/EtvF/H4hCi/TXfCW4Y6w==}
     engines: {node: ^22.13.0 || >=24.0.0}
 
+  husky@9.1.7:
+    resolution: {integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   is-mobile@5.0.0:
     resolution: {integrity: sha512-Tz/yndySvLAEXh+Uk8liFCxOwVH6YutuR74utvOcu7I9Di+DwM0mtdPVZNaVvvBUM2OXxne/NhOs1zAO7riusQ==}
 
@@ -1255,6 +1266,11 @@ packages:
   lightningcss@1.33.0:
     resolution: {integrity: sha512-WkUDrojuJs0xkgGf2udWxa3yGBRxPtxUkB79i6aCZLRgc7PM8fZe9TosfPDcvEpQZbuFASnHYmRLBLUbmLOIIA==}
     engines: {node: '>= 12.0.0'}
+
+  lint-staged@17.6.0:
+    resolution: {integrity: sha512-nOhBfYkZEwkFtNzD5pK9s9LkcWoxJ+whLzEnhqi9nl7zTB5n7tg8+9iYgMGx2Wm3VlLu8cbNj0RACzY+nWi5iQ==}
+    engines: {node: '>=22.22.1'}
+    hasBin: true
 
   lru-cache@11.5.3:
     resolution: {integrity: sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==}
@@ -1400,6 +1416,10 @@ packages:
 
   std-env@4.3.0:
     resolution: {integrity: sha512-OtU/EgQ1kIm5KwqQpBC6ZEMXrZRui11w8zgfTWp8cdO9B8OaPsbA8bTHO2P+HNo1VlUTGMVBwPhydu6poeXiag==}
+
+  string-argv@0.3.2:
+    resolution: {integrity: sha512-aqD2Q0144Z+/RqG52NeHEkZauTAUWJO8c6yTftGJKO3Tja5tUgIfmIl6kExvhtxSDP7fXB6DvzkfMpCd/F3G+Q==}
+    engines: {node: '>=0.6.19'}
 
   string-convert@0.2.1:
     resolution: {integrity: sha512-u/1tdPl4yQnPBjnVrmdLo9gtuLvELKsAoRapekWggdiQNvvvum+jYF329d84NAa660KQw7pB2n36KrIKVoXa3A==}
@@ -1565,6 +1585,11 @@ packages:
 
   xmlchars@2.2.0:
     resolution: {integrity: sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==}
+
+  yaml@2.9.1:
+    resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
 
 snapshots:
 
@@ -2252,19 +2277,19 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
-  '@vitejs/plugin-react@6.2.1(vite@8.3.5(@types/node@22.20.5))':
+  '@vitejs/plugin-react@6.2.1(vite@8.3.5(@types/node@22.20.5)(yaml@2.9.1))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.3.5(@types/node@22.20.5)
+      vite: 8.3.5(@types/node@22.20.5)(yaml@2.9.1)
 
-  '@vitest/mocker@5.1.0(vite@8.3.5(@types/node@22.20.5))':
+  '@vitest/mocker@5.1.0(vite@8.3.5(@types/node@22.20.5)(yaml@2.9.1))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@vitest/spy': 5.1.0
       estree-walker: 3.0.3
       magic-string: 1.4.5
     optionalDependencies:
-      vite: 8.3.5(@types/node@22.20.5)
+      vite: 8.3.5(@types/node@22.20.5)(yaml@2.9.1)
 
   '@vitest/spy@5.1.0': {}
 
@@ -2394,6 +2419,8 @@ snapshots:
     transitivePeerDependencies:
       - '@noble/hashes'
 
+  husky@9.1.7: {}
+
   is-mobile@5.0.0: {}
 
   is-potential-custom-element-name@1.0.1: {}
@@ -2477,6 +2504,14 @@ snapshots:
       lightningcss-linux-x64-musl: 1.33.0
       lightningcss-win32-arm64-msvc: 1.33.0
       lightningcss-win32-x64-msvc: 1.33.0
+
+  lint-staged@17.6.0:
+    dependencies:
+      picomatch: 4.0.7
+      string-argv: 0.3.2
+      tinyexec: 1.3.1
+    optionalDependencies:
+      yaml: 2.9.1
 
   lru-cache@11.5.3: {}
 
@@ -2630,6 +2665,8 @@ snapshots:
 
   std-env@4.3.0: {}
 
+  string-argv@0.3.2: {}
+
   string-convert@0.2.1: {}
 
   stylis@4.4.0: {}
@@ -2667,7 +2704,7 @@ snapshots:
 
   undici@8.12.3: {}
 
-  vite@8.3.5(@types/node@22.20.5):
+  vite@8.3.5(@types/node@22.20.5)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -2677,11 +2714,12 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.20.5
       fsevents: 2.3.3
+      yaml: 2.9.1
 
-  vitest@5.1.0(@types/node@22.20.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@22.20.5)):
+  vitest@5.1.0(@types/node@22.20.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@22.20.5)(yaml@2.9.1)):
     dependencies:
       '@types/chai': 5.2.3
-      '@vitest/mocker': 5.1.0(vite@8.3.5(@types/node@22.20.5))
+      '@vitest/mocker': 5.1.0(vite@8.3.5(@types/node@22.20.5)(yaml@2.9.1))
       chai: 6.3.0
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
@@ -2692,7 +2730,7 @@ snapshots:
       tinybench: 6.2.3
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
-      vite: 8.3.5(@types/node@22.20.5)
+      vite: 8.3.5(@types/node@22.20.5)(yaml@2.9.1)
       why-is-node-running: 3.2.1
     optionalDependencies:
       '@types/node': 22.20.5
@@ -2721,3 +2759,6 @@ snapshots:
   xml-name-validator@5.0.0: {}
 
   xmlchars@2.2.0: {}
+
+  yaml@2.9.1:
+    optional: true

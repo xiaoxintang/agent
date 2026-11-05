@@ -47,6 +47,8 @@ cargo build --workspace --release --locked
 ./target/release/panel-server init-admin --username admin
 ```
 
+安装 Web 依赖时会设置 Git pre-commit hook；提交包含 Web 文件的变更时，hook 使用 Oxfmt 格式化暂存文件，并保留未暂存的修改。
+
 初始化命令在终端中隐藏输入密码。启动本机开发 Server：
 
 ```sh
@@ -70,7 +72,7 @@ pnpm --dir web run dev
 
 ## 开发者：检查与测试
 
-完整的格式、Lint、Rust/TypeScript 契约、类型检查、单元与集成测试、前后端构建及独立二进制冒烟检查：
+Rust 格式、Lint、Rust/TypeScript 契约、类型检查、单元与集成测试、前后端构建及独立二进制冒烟检查：
 
 ```sh
 sh scripts/check.sh
