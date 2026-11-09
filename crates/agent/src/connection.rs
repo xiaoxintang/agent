@@ -137,9 +137,21 @@ pub async fn run(
         }
         let started = Instant::now();
         let session_shutdown = shutdown.clone();
+        let session = session(
+            store,
+            &url,
+            &identity.node_id,
+            &identity.credential,
+            connector.clone(),
+            session_shutdown,
+        );
+        tokio::pin!(session);
         let result = tokio::select! {
-            _ = shutdown.changed() => return Ok(()),
-            result = session(store, &url, &identity.node_id, &identity.credential, connector.clone(), session_shutdown) => result,
+            _ = shutdown.changed() => {
+                let _ = tokio::time::timeout(Duration::from_secs(5), &mut session).await;
+                return Ok(());
+            },
+            result = &mut session => result,
         };
         match result {
             Ok(()) => return Ok(()),

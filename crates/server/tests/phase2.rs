@@ -259,6 +259,73 @@ async fn receive(socket: &mut Socket) -> Envelope {
         }
     }
 }
+
+#[tokio::test]
+async fn committed_tasks_wake_the_agent_and_polling_recovers_a_missed_notification() {
+    let server = Harness::new().await;
+    let node = server.node().await;
+    let store = server.enroll(&node, 1).await;
+    let credential = store.identity().await.unwrap().unwrap().credential;
+    let mut socket = server.socket("Bearer", &credential).await.unwrap();
+    frame(&mut socket, &node, Message::Hello(AgentInfo::current())).await;
+    receive(&mut socket).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let task = server.task(&node, &Uuid::new_v4().to_string()).await;
+    let delivered = tokio::time::timeout(Duration::from_secs(2), receive(&mut socket))
+        .await
+        .unwrap();
+    let Message::Task(command) = delivered.message else {
+        panic!("expected task")
+    };
+    assert_eq!(command.id, task["id"]);
+    assert_eq!(
+        sqlx::query_scalar::<_, String>("SELECT status FROM tasks WHERE id=?")
+            .bind(&command.id)
+            .fetch_one(&server.state.pool)
+            .await
+            .unwrap(),
+        "dispatched"
+    );
+    frame(
+        &mut socket,
+        &node,
+        Message::TaskResult {
+            task_id: command.id,
+            result: panel_common::TaskOutcome::Succeeded(AgentInfo::current()),
+        },
+    )
+    .await;
+    assert!(matches!(
+        receive(&mut socket).await.message,
+        Message::ResultAck { .. }
+    ));
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let queued = panel_common::TaskCommand {
+        id: Uuid::new_v4().to_string(),
+        operation: panel_common::TaskOperation::AgentStatus,
+        deadline_at: db::now() + 60,
+        private_config: None,
+    };
+    // Deliberately bypass the notification path, simulating a lost wakeup.
+    sqlx::query("INSERT INTO tasks (id,node_id,operation,payload_json,idempotency_key,status,created_at,deadline_at) VALUES (?,?,'agent_status',?,?,'pending',?,?)")
+        .bind(&queued.id).bind(&node).bind(serde_json::to_string(&queued).unwrap())
+        .bind(Uuid::new_v4().to_string()).bind(db::now()).bind(queued.deadline_at)
+        .execute(&server.state.pool).await.unwrap();
+    let delivered = tokio::time::timeout(Duration::from_secs(12), async {
+        loop {
+            match socket.next().await.unwrap().unwrap() {
+                WsMessage::Text(text) => return Envelope::parse(&text, Some(&node)).unwrap(),
+                WsMessage::Ping(bytes) => socket.send(WsMessage::Pong(bytes)).await.unwrap(),
+                other => panic!("unexpected WebSocket message: {other:?}"),
+            }
+        }
+    })
+    .await
+    .unwrap();
+    assert!(matches!(delivered.message, Message::Task(task) if task.id==queued.id));
+    let _ = socket.close(None).await;
+    store.close().await;
+}
 fn unauthorized(error: tungstenite::Error) {
     assert!(matches!(error, tungstenite::Error::Http(response) if response.status() == 401));
 }

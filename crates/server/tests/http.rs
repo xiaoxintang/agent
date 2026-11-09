@@ -90,6 +90,8 @@ async fn unknown_routes_and_private_files_never_fall_back_to_the_spa() {
         "/api/v1/missing",
         "/agent/v1/missing",
         "/nodes/missing",
+        "/nodes/not-a-uuid/resources",
+        "/nodes/9e2cf2b5-a1ea-4152-9e20-48d36223d91d/missing",
         "/assets/missing.js",
         "/Cargo.toml",
         "/.git/config",
@@ -116,6 +118,11 @@ async fn frontend_routes_serve_the_spa_and_support_head() {
         "/agent",
         "/nodes",
         "/audit",
+        "/nodes/9e2cf2b5-a1ea-4152-9e20-48d36223d91d/resources",
+        "/nodes/9e2cf2b5-a1ea-4152-9e20-48d36223d91d/xray",
+        "/nodes/9e2cf2b5-a1ea-4152-9e20-48d36223d91d/configuration",
+        "/nodes/9e2cf2b5-a1ea-4152-9e20-48d36223d91d/traffic",
+        "/nodes/9e2cf2b5-a1ea-4152-9e20-48d36223d91d/agent",
     ] {
         let response = request("GET", path).await;
         assert_eq!(response.status(), StatusCode::OK, "{path}");

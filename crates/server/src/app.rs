@@ -6,7 +6,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::get,
 };
-use panel_common::{ApiError, ErrorResponse, HealthResponse, HealthStatus, VERSION};
+use panel_common::{HealthResponse, HealthStatus, VERSION};
 
 use crate::{agents, api, auth, configuration, metrics, state::AppState, static_assets, tasks};
 
@@ -20,6 +20,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/auth/logout", axum::routing::post(auth::logout))
         .route("/api/v1/auth/me", get(auth::me))
         .route("/api/v1/nodes", get(api::nodes).post(api::create_node))
+        .route("/api/v1/nodes/summary", get(metrics::summaries))
         .route("/api/v1/local-node", get(api::local_node))
         .route(
             "/api/v1/local-node/{id}",
@@ -90,12 +91,24 @@ pub fn router(state: AppState) -> Router {
         .route("/traffic", get(static_assets::index))
         .route("/agent", get(static_assets::index))
         .route("/nodes", get(static_assets::index))
+        .route("/nodes/{id}/resources", get(node_page))
+        .route("/nodes/{id}/xray", get(node_page))
+        .route("/nodes/{id}/configuration", get(node_page))
+        .route("/nodes/{id}/traffic", get(node_page))
+        .route("/nodes/{id}/agent", get(node_page))
         .route("/audit", get(static_assets::index))
         .fallback(fallback)
         .method_not_allowed_fallback(method_not_allowed)
         .layer(DefaultBodyLimit::max(16 * 1024))
         .layer(middleware::from_fn(security_headers))
         .with_state(state)
+}
+
+async fn node_page(axum::extract::Path(id): axum::extract::Path<String>) -> Response {
+    if uuid::Uuid::parse_str(&id).is_err() {
+        return error(StatusCode::NOT_FOUND, "not_found", "Resource not found");
+    }
+    static_assets::index().await
 }
 
 async fn health() -> impl IntoResponse {
@@ -127,21 +140,35 @@ async fn method_not_allowed() -> Response {
 }
 
 pub(crate) fn error(status: StatusCode, code: &'static str, message: &'static str) -> Response {
-    (
-        status,
-        [(header::CACHE_CONTROL, "no-store")],
-        Json(ErrorResponse {
-            error: ApiError { code, message },
-        }),
-    )
-        .into_response()
+    crate::error::AppError::new(status, code, message).into_response()
 }
 
 async fn security_headers(mut request: Request, next: Next) -> Response {
     let id = uuid::Uuid::new_v4().to_string();
     request.extensions_mut().insert(RequestId(id.clone()));
     let is_api = request.uri().path().starts_with("/api/");
+    let (node_id, task_id) = {
+        let path_id = |prefix| {
+            request
+                .uri()
+                .path()
+                .strip_prefix(prefix)
+                .and_then(|path| path.split('/').next())
+                .and_then(|id| uuid::Uuid::parse_str(id).ok())
+                .map(|id| id.to_string())
+        };
+        (path_id("/api/v1/nodes/"), path_id("/api/v1/tasks/"))
+    };
     let mut response = next.run(request).await;
+    if let Some(error) = response.extensions().get::<crate::error::AppError>() {
+        crate::diagnostics::report(
+            "http_error",
+            error,
+            Some(&id),
+            node_id.as_deref(),
+            task_id.as_deref(),
+        );
+    }
     let headers = response.headers_mut();
     headers.insert(
         "x-request-id",

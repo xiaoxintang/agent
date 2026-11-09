@@ -6,6 +6,7 @@ pub mod auth;
 pub mod config;
 mod configuration;
 pub mod db;
+mod diagnostics;
 pub mod error;
 mod metrics;
 pub mod state;

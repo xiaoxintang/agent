@@ -1,5 +1,13 @@
 # HTTP 契约
 
+## 节点列表摘要与详情页面
+
+`GET /api/v1/nodes/summary` 要求管理员会话，返回最多 100 个未撤销节点的 `NodeSummary[]`，排序与 `/nodes` 相同。每项包含 `node: Node` 与 `metrics: NodeMetricsSummary`；指标摘要只有 `cpu_percent`、`memory`、`received_at` 和 `stale`，不包含磁盘、网络或凭据。缺少指标时值为 null、stale 为 true；断线、连接代次不符、心跳或采样超时均标记 stale。原 `/nodes` 和单节点指标接口保持兼容。
+
+浏览器通过 `/nodes/{UUID}/resources|xray|configuration|traffic|agent` 管理指定节点；页面显示节点名称及 ID。原本机页面作为快捷入口保留，不修改本机归属来切换远程节点。只有这些明确登记的详情路径可返回 SPA，未知 API、未知详情页及非 UUID 节点路径仍返回 JSON 404。
+
+错误体继续保持 `{error:{code,message}}`，前端仅将已知 code 映射为本地提示，不显示服务端原始 message；保留服务器生成的 `X-Request-ID` 供排障。服务端日志仅记录错误类别、SQLite 数字错误码和请求/节点/任务 ID，不记录请求体、SQL 参数、URL 查询或凭据。
+
 ## Phase 4 Xray 生命周期
 
 `POST /api/v1/nodes/{id}/xray/{action}` 沿用管理员 Cookie/CSRF 和任务审计，action 仅为 install/upgrade/start/stop/restart/rollback/uninstall/status。请求为 `{idempotency_key:UUID,version?:XrayVersion}`，install/upgrade 必须提供版本，其余动作禁止版本参数；也可通过 TaskInput 的 `{"xray":operation}` 提交相同封闭枚举。新任务 201、同键同操作重试 200、冲突 409。生命周期任务截止时间为 300 秒，其他任务仍为 60 秒。
@@ -77,7 +85,7 @@ WSS 使用正常的证书链、主机名和有效期验证；私有 CA 用 `--ca
 operation 包含 `agent_status`（真实版本/OS/架构）和上述 service_status。任务截止时间固定为创建后 60 秒；Agent 拒绝超过本机 5 分钟后的任务截止时间，过期任务不执行。指标通过独立消息周期上报，不通过任务队列积压。
 TaskRecord 包含 id、node_id、operation、status、attempt_count、created_at、deadline_at、finished_at、result。状态为 pending/dispatched/acked/succeeded/failed/expired/canceled；时间是 UTC Unix 秒。AgentStatus 结果仍为 `{status:"succeeded",data:{version,os,arch}}`；服务查询结果见上文；所有操作还可返回 `{status:"expired"}` 或 `{status:"interrupted"}`。
 Agent 在本地 receipt 提交后执行，结果提交后按顺序发送 ACK 和结果。相同任务 ID 与相同 payload 返回缓存结果，内容冲突拒绝；断线、ACK 丢失或重启不能让已记录任务再次执行。若进程在 receipt 和结果之间崩溃，任务标记 interrupted，**不自动重试执行**。此处是 at-most-once，不是跨进程 exactly-once；对中断任务由管理员另建新任务。结果确认不会删除 receipt；超过截止时间一天后才清理，届时重复过期任务仍不能执行。
-Server 在启动/创建任务时清理 7 天前终结任务，Agent 在启动/完成任务时清理旧 receipt，不增加队列服务。期望配置 revision 在 Phase 5 实施，当前不伪造配置状态。
+Server 在启动及每分钟维护任务中清理 7 天前终结任务，保留各节点最新配置引用的任务；Agent 在启动/完成任务时清理旧 receipt，不增加队列服务。任务和配置事务提交后通知对应连接立即检查持久队列；通知丢失或滞后时以 10 秒轮询兜底，结果提交后立即继续下一任务。撤销和凭据轮换也唤醒连接重新验证。
 
 ## Phase 1 认证、节点和审计
 

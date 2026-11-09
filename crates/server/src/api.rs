@@ -14,7 +14,7 @@ use panel_common::{AuditEntry, AuditMetadata, Node, NodeInput};
 use uuid::Uuid;
 
 #[derive(sqlx::FromRow)]
-struct NodeRow {
+pub(crate) struct NodeRow {
     id: String,
     name: String,
     status: String,
@@ -254,6 +254,7 @@ pub async fn delete_node(
     )
     .await?;
     tx.commit().await?;
+    state.wake_agent(&id);
     Ok(StatusCode::NO_CONTENT)
 }
 

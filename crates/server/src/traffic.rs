@@ -6,15 +6,18 @@ use panel_common::{
         ClientTraffic, MAX_COUNTER, NodeTraffic, TRAFFIC_SECONDS, TrafficBucket, TrafficReport,
     },
 };
-use sqlx::SqlitePool;
+use sqlx::{QueryBuilder, Sqlite, SqlitePool, Transaction};
+use std::collections::BTreeSet;
 
 pub(crate) async fn record(
-    pool: &SqlitePool,
+    state: &AppState,
     node: &str,
     generation: &str,
     report: &TrafficReport,
 ) -> Result<(), AppError> {
+    let pool = &state.pool;
     let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
+    let mut affected_clients = BTreeSet::new();
     let current = sqlx::query_scalar::<_, bool>(
         "SELECT EXISTS(SELECT 1 FROM nodes WHERE id=? AND connection_id=? AND revoked_at IS NULL)",
     )
@@ -66,6 +69,7 @@ pub(crate) async fn record(
                 .bind(&counter.client_id)
                 .execute(&mut *tx)
                 .await?;
+            affected_clients.insert(counter.client_id.clone());
             sqlx::query("INSERT INTO traffic_totals(node_id,client_id,uplink_bytes,downlink_bytes) VALUES (?,?,?,?) ON CONFLICT(node_id,client_id) DO UPDATE SET uplink_bytes=MIN(uplink_bytes+excluded.uplink_bytes,9007199254740991),downlink_bytes=MIN(downlink_bytes+excluded.downlink_bytes,9007199254740991)")
                 .bind(node).bind(&counter.client_id).bind(up).bind(down).execute(&mut *tx).await?;
             // Bucket by server receipt time: delayed samples never rewrite past accounting windows.
@@ -73,26 +77,58 @@ pub(crate) async fn record(
                 .bind(node).bind(&counter.client_id).bind(db::now()/3600*3600).bind(up).bind(down).execute(&mut *tx).await?;
         }
     }
-    sqlx::query("DELETE FROM traffic_aggregates WHERE bucket_start<?")
-        .bind(db::now() - 7 * 86400)
-        .execute(&mut *tx)
-        .await?;
+    let affected_nodes = if affected_clients.is_empty() {
+        Vec::new()
+    } else {
+        enforce_clients(&mut tx, Some(&affected_clients)).await?
+    };
     tx.commit().await?;
-    enforce(pool).await
+    for node in affected_nodes {
+        state.wake_agent(&node);
+    }
+    Ok(())
 }
 
 /// Policy removes users only from the last submitted desired snapshot; drafts stay untouched.
-pub async fn enforce(pool: &SqlitePool) -> Result<(), AppError> {
+pub async fn enforce(pool: &SqlitePool) -> Result<Vec<String>, AppError> {
     let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-    let changed=sqlx::query_as::<_,(String,bool)>("SELECT id, ((expiry_at IS NOT NULL AND expiry_at<=?) OR (quota_bytes IS NOT NULL AND used_bytes>=quota_bytes)) FROM clients WHERE policy_blocked != ((expiry_at IS NOT NULL AND expiry_at<=?) OR (quota_bytes IS NOT NULL AND used_bytes>=quota_bytes))").bind(db::now()).bind(db::now()).fetch_all(&mut *tx).await?;
+    let nodes = enforce_clients(&mut tx, None).await?;
+    tx.commit().await?;
+    Ok(nodes)
+}
+
+async fn enforce_clients(
+    tx: &mut Transaction<'_, Sqlite>,
+    candidates: Option<&BTreeSet<String>>,
+) -> Result<Vec<String>, AppError> {
+    let now = db::now();
+    let mut query =
+        QueryBuilder::<Sqlite>::new("SELECT id, ((expiry_at IS NOT NULL AND expiry_at<=");
+    query.push_bind(now).push(") OR (quota_bytes IS NOT NULL AND used_bytes>=quota_bytes)) FROM clients WHERE policy_blocked != ((expiry_at IS NOT NULL AND expiry_at<=");
+    query
+        .push_bind(now)
+        .push(") OR (quota_bytes IS NOT NULL AND used_bytes>=quota_bytes))");
+    if let Some(candidates) = candidates {
+        query.push(" AND id IN (");
+        let mut ids = query.separated(",");
+        for client in candidates {
+            ids.push_bind(client);
+        }
+        ids.push_unseparated(")");
+    }
+    let changed = query
+        .build_query_as::<(String, bool)>()
+        .fetch_all(&mut **tx)
+        .await?;
+    let mut blocked_clients = BTreeSet::new();
     for (client, blocked) in changed {
         sqlx::query("UPDATE clients SET policy_blocked=? WHERE id=?")
             .bind(blocked)
             .bind(&client)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
         db::audit(
-            &mut tx,
+            tx,
             None,
             None,
             if blocked {
@@ -105,15 +141,26 @@ pub async fn enforce(pool: &SqlitePool) -> Result<(), AppError> {
             None,
         )
         .await?;
+        if blocked {
+            blocked_clients.insert(client);
+        }
     }
-    let blocked: std::collections::BTreeSet<String> =
-        sqlx::query_scalar("SELECT id FROM clients WHERE policy_blocked=1")
-            .fetch_all(&mut *tx)
-            .await?
-            .into_iter()
-            .collect();
-    if !blocked.is_empty() {
-        let snapshots=sqlx::query_as::<_,(String,String)>("SELECT r.node_id,r.desired_config_json FROM config_revisions r JOIN nodes n ON n.id=r.node_id WHERE n.revoked_at IS NULL AND r.revision=(SELECT MAX(revision) FROM config_revisions WHERE node_id=r.node_id)").fetch_all(&mut *tx).await?;
+    let mut nodes = Vec::new();
+    if !blocked_clients.is_empty() {
+        // Match committed snapshots rather than draft assignments: an unapplied
+        // unassignment must not hide a client that is still running on a node.
+        let mut query = QueryBuilder::<Sqlite>::new(
+            "SELECT r.node_id,r.desired_config_json FROM config_revisions r JOIN nodes n ON n.id=r.node_id WHERE n.revoked_at IS NULL AND r.revision=(SELECT MAX(revision) FROM config_revisions WHERE node_id=r.node_id) AND EXISTS (SELECT 1 FROM json_each(r.desired_config_json,'$.inbounds') i, json_each(i.value,'$.clients') c WHERE json_extract(c.value,'$.id') IN (",
+        );
+        let mut ids = query.separated(",");
+        for client in &blocked_clients {
+            ids.push_bind(client);
+        }
+        ids.push_unseparated("))");
+        let snapshots = query
+            .build_query_as::<(String, String)>()
+            .fetch_all(&mut **tx)
+            .await?;
         for (node, private) in snapshots {
             let mut config: NodeConfig =
                 serde_json::from_str(&private).map_err(|_| AppError::internal())?;
@@ -125,7 +172,7 @@ pub async fn enforce(pool: &SqlitePool) -> Result<(), AppError> {
             for inbound in &mut config.inbounds {
                 inbound
                     .clients
-                    .retain(|client| !blocked.contains(&client.id));
+                    .retain(|client| !blocked_clients.contains(&client.id));
             }
             if config
                 .inbounds
@@ -134,21 +181,27 @@ pub async fn enforce(pool: &SqlitePool) -> Result<(), AppError> {
                 .sum::<usize>()
                 != before
             {
-                configuration::queue_policy(&mut tx, &node, config).await?;
+                configuration::queue_policy(tx, &node, config).await?;
+                nodes.push(node);
             }
         }
     }
-    tx.commit().await?;
-    Ok(())
+    Ok(nodes)
 }
 
-pub async fn run(pool: SqlitePool, mut shutdown: tokio::sync::watch::Receiver<bool>) {
+pub async fn run(state: AppState, mut shutdown: tokio::sync::watch::Receiver<bool>) {
     let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
+        if *shutdown.borrow() {
+            return;
+        }
         tokio::select! {
             _=shutdown.changed()=>return,
-            _=tick.tick()=>if enforce(&pool).await.is_err(){eprintln!("Client quota/expiry reconciliation failed; retrying on next interval");}
+            _=tick.tick()=>match enforce(&state.pool).await {
+                Ok(nodes) => for node in nodes { state.wake_agent(&node); },
+                Err(error) => crate::diagnostics::report("policy_error", &error, None, None, None),
+            }
         }
     }
 }
@@ -189,3 +242,6 @@ pub async fn get(
         clients,
     }))
 }
+
+#[cfg(test)]
+mod tests;

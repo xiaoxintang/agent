@@ -1,5 +1,13 @@
 # 运行说明
 
+## 节点管理、停服和错误排查
+
+在“节点管理”中点击对应行的“管理节点”，进入该节点的资源、Xray、配置、流量及 Agent 页面。执行操作前确认页面上的节点名称和 ID；本机菜单只跳转到已设置本机节点的详情，无需将远程节点设为本机。
+
+Server/Agent 接收 systemd 默认的 SIGTERM 和终端 SIGINT。Server 给 HTTP 退出和后台/Agent/数据库退出各最多 5 秒；超过期限会记录日志。关闭控制连接不保证已经交给 root helper 的事务立刻停止，中断任务仍应先查询实际状态，不重复执行不确定的原任务。
+
+界面错误附带服务器生成的请求 ID。使用 `journalctl -u panel-server.service` 查找 JSON 日志中的 `request_id`，结合 `node_id`、`task_id`、`error_code` 和 `database.kind/code` 定位错误。日志不包含请求体、SQL 参数或凭据。超期历史数据在启动及每分钟维护时物理清理，审计读取始终过滤 90 天前记录。
+
 ## Xray 受管生命周期（Phase 4）
 
 页面“Xray 管理”提供固定版本的安装/升级、启动/停止/重启、上一版本回滚和保留数据的卸载。未经本机管理员配置 helper 时，明确返回 helper_unavailable，不会尝试 sudo 或改用 root Agent。

@@ -10,9 +10,9 @@ use panel_common::{
     AdminUser, AgentInfo, AuditEntry, AuditMetadata, ByteUsage, EnrollmentInput,
     EnrollmentResponse, HealthResponse, HealthStatus, LoginRequest, ManagedService, MetricIssue,
     MetricName, MetricReason, MetricsSnapshot, NetworkUsage, Node, NodeInput, NodeMetrics,
-    ServiceError, ServiceQuery, ServiceReport, SessionResponse, TaskCommand, TaskInput,
-    TaskOperation, TaskOutcome, TaskRecord, XrayError, XrayOperation, XrayRelease, XrayReport,
-    XrayResult, XrayVersion,
+    NodeMetricsSummary, NodeSummary, ServiceError, ServiceQuery, ServiceReport, SessionResponse,
+    TaskCommand, TaskInput, TaskOperation, TaskOutcome, TaskRecord, XrayError, XrayOperation,
+    XrayRelease, XrayReport, XrayResult, XrayVersion,
 };
 use std::{env, error::Error, fs, path::Path};
 use ts_rs::{Config, TS};
@@ -46,6 +46,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         MetricsSnapshot::decl(&cfg),
         NetworkUsage::decl(&cfg),
         NodeMetrics::decl(&cfg),
+        NodeMetricsSummary::decl(&cfg),
+        NodeSummary::decl(&cfg),
         ServiceError::decl(&cfg),
         ServiceReport::decl(&cfg),
         ServiceQuery::decl(&cfg),

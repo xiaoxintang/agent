@@ -79,7 +79,9 @@ try {
     "Fixture Agent re-enrollment failed; credentials redacted",
   );
   await expect(row.getByText("在线", { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "Xray 管理", exact: true }).click();
+  await row.getByRole("link", { name: "管理节点", exact: true }).click();
+  await expect(page.getByText(state.node_id, { exact: true })).toBeVisible();
+  await page.locator(`a[href="/nodes/${state.node_id}/xray"]`).click();
   const xray = page.locator(".ant-card").filter({ hasText: "受管 Xray" });
   await xray.getByRole("button", { name: "卸载并保留数据" }).click();
   await confirm();
@@ -90,7 +92,7 @@ try {
   await expect(xray.getByText(/已安装 26\.10\.31.*运行中/)).toBeVisible({
     timeout: 240000,
   });
-  await page.getByRole("link", { name: "配置管理", exact: true }).click();
+  await page.locator(`a[href="/nodes/${state.node_id}/configuration"]`).click();
   const config = page
     .locator(".ant-card")
     .filter({ hasText: "VLESS + REALITY 配置" });
@@ -138,7 +140,7 @@ try {
     (await page.evaluate(() => JSON.stringify(localStorage))).includes(token),
     false,
   );
-  await page.getByRole("link", { name: "流量统计", exact: true }).click();
+  await page.locator(`a[href="/nodes/${state.node_id}/traffic"]`).click();
   const traffic = page.locator(".ant-card").filter({ hasText: "节点流量" });
   await expect
     .poll(

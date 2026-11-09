@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import App from "./App";
@@ -156,5 +156,81 @@ it("navigates from overview to the local resources page", async () => {
   fireEvent.click(screen.getByRole("link", { name: "本机资源" }));
   expect(await screen.findByText("尚未设置本机节点")).toBeTruthy();
   expect(screen.queryByText("服务正常")).toBeNull();
+  client.clear();
+});
+
+it("manages the selected remote node without changing the local node", async () => {
+  const remote = "5b56579d-89b0-40c7-9187-bf7fe4158c4f";
+  const fetch = vi.fn((url: string, options?: RequestInit) => {
+    if (url.endsWith("/auth/me"))
+      return Promise.resolve(new Response(JSON.stringify(session)));
+    if (url.endsWith("/local-node"))
+      return Promise.resolve(
+        new Response(JSON.stringify({ node_id: "local-node" })),
+      );
+    if (url.endsWith(`/nodes/${remote}`))
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ id: remote, name: "远程节点", status: "online" }),
+        ),
+      );
+    if (url.endsWith("/xray/status") && options?.method === "POST")
+      return Promise.resolve(
+        new Response(JSON.stringify({ id: "task-remote" })),
+      );
+    if (url.endsWith("/tasks/task-remote"))
+      return Promise.resolve(
+        new Response(JSON.stringify({ status: "succeeded" })),
+      );
+    if (
+      url.endsWith(`/nodes/${remote}/inbounds`) ||
+      url.endsWith("/clients") ||
+      url.endsWith("/config/revisions")
+    )
+      return Promise.resolve(new Response("[]"));
+    throw new Error(`Unexpected test request: ${url}`);
+  });
+  vi.stubGlobal("fetch", fetch);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[`/nodes/${remote}/xray`]}>
+        <App />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByText("当前节点：远程节点")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "查询安装状态" }));
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(
+        ([url, options]) =>
+          url === `/api/v1/nodes/${remote}/xray/status` &&
+          options?.method === "POST" &&
+          (options.headers as Record<string, string>)["X-CSRF-Token"] ===
+            "csrf",
+      ),
+    ).toBe(true),
+  );
+  const configuration = screen
+    .getAllByRole("link", { name: "配置管理" })
+    .find((link) =>
+      link.getAttribute("href")?.startsWith(`/nodes/${remote}/`),
+    )!;
+  fireEvent.click(configuration);
+  expect(await screen.findByText("VLESS + REALITY 配置")).toBeTruthy();
+  expect(
+    fetch.mock.calls.some(
+      ([url]) => url === `/api/v1/nodes/${remote}/inbounds`,
+    ),
+  ).toBe(true);
+  expect(
+    fetch.mock.calls.some(([url]) => url.includes("/nodes/local-node/")),
+  ).toBe(false);
+  expect(
+    fetch.mock.calls.some(([, options]) => options?.method === "PUT"),
+  ).toBe(false);
   client.clear();
 });

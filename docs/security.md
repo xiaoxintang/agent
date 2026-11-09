@@ -26,7 +26,7 @@
 - 指标只读固定 `/proc` 和根文件系统，限制读取大小/接口数量，Server 验证数值、身份及当前连接，只存每节点最新快照。字段缺失、平台不支持、计数重置和历史数据均显式展示，指标不当作 Xray 计费或配额依据。
 - 合法服务查询完成与审计在同一事务提交，重复结果不重复写审计；非法任务在 Server 拒绝并审计，不把恶意 unit/method 字符串保存到日志。结果必须匹配原任务和服务枚举。
 - enrollment 弹窗关闭时立即卸载，避免组件库关闭动画保留敏感 DOM；异步迟到响应会丢弃。token 不进入 Query/Mutation Cache，登出时也清理任务缓存。
-- 静态文件通过 rust-embed 的编译时资源表精确查找，不读取请求指定的磁盘路径。只允许首页和 `/assets/*`。
+- 静态文件通过 rust-embed 的编译时资源表精确查找，不读取请求指定的磁盘路径。SPA 只允许明确登记的页面，包括校验 UUID 的节点详情；未知页面及 API 不回退首页。
 - 未知 API、Agent 路径、私有文件及缺失资源均返回 JSON 404。已知接口不支持的方法返回 JSON 405。
 - 所有响应包含 `X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer` 和 CSP。
 - CSP 默认拒绝其他源，脚本和网络请求仅允许同源，禁止 object、base 修改和 iframe 嵌入。Ant Design 运行时插入样式及 style 属性，因此当前 `style-src` 使用 `'unsafe-inline'`；脚本不允许内联或 eval。后续硬化时评估 nonce 和 style 属性的兼容性。

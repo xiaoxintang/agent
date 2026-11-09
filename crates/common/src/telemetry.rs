@@ -114,6 +114,21 @@ pub struct NodeMetrics {
     pub stale: bool,
 }
 
+#[derive(Deserialize, Serialize, TS)]
+pub struct NodeMetricsSummary {
+    pub cpu_percent: Option<f64>,
+    pub memory: Option<ByteUsage>,
+    #[ts(type = "number | null")]
+    pub received_at: Option<i64>,
+    pub stale: bool,
+}
+
+#[derive(Deserialize, Serialize, TS)]
+pub struct NodeSummary {
+    pub node: crate::Node,
+    pub metrics: NodeMetricsSummary,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum ManagedService {

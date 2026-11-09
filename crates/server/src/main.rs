@@ -76,6 +76,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         println!("Administrator initialized");
         return Ok(());
     }
+    let signal = panel_common::shutdown::signal()?;
     let tls_paths = config::tls_paths()?;
     let acme_domain = match std::env::var("PANEL_ACME_DOMAIN") {
         Ok(domain) => Some(domain),
@@ -113,11 +114,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     let mut state =
         AppState::new(db::open(&config::data_directory()).await?, secure_cookie).await?;
-    tokio::spawn(panel_server::traffic::run(
+    let policy = tokio::spawn(panel_server::traffic::run(
+        state.clone(),
+        state.agents_shutdown.subscribe(),
+    ));
+    let maintenance = tokio::spawn(db::maintain(
         state.pool.clone(),
         state.agents_shutdown.subscribe(),
     ));
     let shutdown = state.agents_shutdown.clone();
+    let mut stopped = shutdown.subscribe();
     if tls_enabled {
         state.tls_enabled = true;
         let tls = if let Some(domain) = acme_domain {
@@ -131,8 +137,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let handle = axum_server::Handle::new();
         let stop = handle.clone();
         tokio::spawn(async move {
-            let _ = tokio::signal::ctrl_c().await;
-            let _ = shutdown.send(true);
+            if let Err(error) = signal.await {
+                eprintln!("Cannot listen for shutdown: {error}");
+            }
+            shutdown.send_replace(true);
             stop.graceful_shutdown(Some(std::time::Duration::from_secs(5)));
         });
         println!(
@@ -141,21 +149,39 @@ async fn main() -> Result<(), Box<dyn Error>> {
         );
         axum_server::from_tcp_rustls(listener.into_std()?, tls)?
             .handle(handle)
-            .serve(app::router(state).into_make_service())
+            .serve(app::router(state.clone()).into_make_service())
             .await?;
-        return Ok(());
+    } else {
+        println!(
+            "panel-server {} listening on http://{address}",
+            panel_common::VERSION
+        );
+        let serve =
+            axum::serve(listener, app::router(state.clone())).with_graceful_shutdown(async move {
+                if let Err(error) = signal.await {
+                    eprintln!("Cannot listen for shutdown: {error}");
+                }
+                shutdown.send_replace(true);
+            });
+        tokio::select! {
+            result = std::future::IntoFuture::into_future(serve) => result?,
+            _ = async {
+                let _ = stopped.wait_for(|stopped| *stopped).await;
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            } => eprintln!("HTTP shutdown deadline reached"),
+        }
     }
-    println!(
-        "panel-server {} listening on http://{address}",
-        panel_common::VERSION
-    );
-    axum::serve(listener, app::router(state))
-        .with_graceful_shutdown(async move {
-            if let Err(error) = tokio::signal::ctrl_c().await {
-                eprintln!("Cannot listen for shutdown: {error}");
-            }
-            let _ = shutdown.send(true);
-        })
-        .await?;
+    state.agents_shutdown.send_replace(true);
+    if tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        let _ = policy.await;
+        let _ = maintenance.await;
+        state.drain_agents().await;
+        state.pool.close().await;
+    })
+    .await
+    .is_err()
+    {
+        eprintln!("Background shutdown deadline reached");
+    }
     Ok(())
 }

@@ -1,10 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  useMutation,
-  useQueries,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
   Button,
@@ -23,8 +18,7 @@ import {
   createNode,
   deleteNode,
   getAudit,
-  getNodes,
-  getMetrics,
+  getNodeSummaries,
   getLocalNode,
   setLocalNode,
   getSession,
@@ -40,6 +34,7 @@ import type {
   SessionResponse,
 } from "../types/generated";
 import AgentActions from "./AgentActions";
+import { Link } from "react-router-dom";
 
 export function LoginForm() {
   const client = useQueryClient();
@@ -113,8 +108,8 @@ export function Management({
 }) {
   const client = useQueryClient();
   const nodes = useQuery({
-    queryKey: ["nodes"],
-    queryFn: getNodes,
+    queryKey: ["nodes", "summary"],
+    queryFn: ({ signal }) => getNodeSummaries(signal),
     enabled: page !== "audit",
     retry: false,
     refetchInterval: 5000,
@@ -131,14 +126,10 @@ export function Management({
     enabled: page === "nodes",
     retry: false,
   });
-  const metrics = useQueries({
-    queries: (page === "nodes" ? (nodes.data ?? []) : []).map((node) => ({
-      queryKey: ["metrics", node.id],
-      queryFn: () => getMetrics(node.id),
-      retry: false,
-      refetchInterval: 5000,
-    })),
-  });
+  const nodeRows = nodes.data?.map((summary) => summary.node) ?? [];
+  const metrics = new Map(
+    nodes.data?.map((summary) => [summary.node.id, summary.metrics]),
+  );
   const markLocal = useMutation({
     mutationFn: (id: string) => setLocalNode(id, session.csrf_token),
     onSuccess: () =>
@@ -180,9 +171,6 @@ export function Management({
     exit.error,
     local.error,
     markLocal.error,
-    ...metrics
-      .map((result) => result.error)
-      .filter((error) => error instanceof ApiError && error.status === 401),
   ];
   const expired = errors.some(
     (error) => error instanceof ApiError && error.status === 401,
@@ -232,7 +220,7 @@ export function Management({
           {nodes.isSuccess && (
             <Typography.Paragraph>
               节点 {nodes.data.length} · 在线{" "}
-              {nodes.data.filter((node) => node.status === "online").length}
+              {nodeRows.filter((node) => node.status === "online").length}
             </Typography.Paragraph>
           )}
           <Form
@@ -274,7 +262,7 @@ export function Management({
             className="section"
             rowKey="id"
             loading={nodes.isPending}
-            dataSource={nodes.data ?? []}
+            dataSource={nodeRows}
             size="small"
             scroll={{ x: 800 }}
             columns={[
@@ -293,37 +281,19 @@ export function Management({
                 title: "CPU",
                 key: "cpu",
                 render: (_, node) => {
-                  const result =
-                    metrics[
-                      (nodes.data ?? []).findIndex(
-                        (item) => item.id === node.id,
-                      )
-                    ];
-                  if (!result) return "—";
-                  if (result.isError) return "获取失败";
-                  if (
-                    !result.data?.snapshot ||
-                    result.data.snapshot.cpu_percent == null
-                  )
-                    return "暂无数据";
-                  return `${result.data.snapshot.cpu_percent.toFixed(1)}%${result.data.stale ? "（过期）" : ""}`;
+                  const summary = metrics.get(node.id);
+                  if (summary?.cpu_percent == null) return "暂无数据";
+                  return `${summary.cpu_percent.toFixed(1)}%${summary.stale ? "（过期）" : ""}`;
                 },
               },
               {
                 title: "内存",
                 key: "memory",
                 render: (_, node) => {
-                  const result =
-                    metrics[
-                      (nodes.data ?? []).findIndex(
-                        (item) => item.id === node.id,
-                      )
-                    ];
-                  if (!result) return "—";
-                  if (result.isError) return "获取失败";
-                  const memory = result.data?.snapshot?.memory;
+                  const summary = metrics.get(node.id);
+                  const memory = summary?.memory;
                   if (!memory || !Number(memory.total_bytes)) return "暂无数据";
-                  return `${((Number(memory.used_bytes) / Number(memory.total_bytes)) * 100).toFixed(1)}%${result.data?.stale ? "（过期）" : ""}`;
+                  return `${((Number(memory.used_bytes) / Number(memory.total_bytes)) * 100).toFixed(1)}%${summary?.stale ? "（过期）" : ""}`;
                 },
               },
               {
@@ -331,6 +301,11 @@ export function Management({
                 key: "actions",
                 render: (_, node) => (
                   <Space>
+                    <Link
+                      to={`/nodes/${encodeURIComponent(node.id)}/resources`}
+                    >
+                      管理节点
+                    </Link>
                     <AgentActions
                       nodeId={node.id}
                       csrf={session.csrf_token}

@@ -87,9 +87,12 @@ async fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
         Command::Revoke => connection::retire(&store, cli.allow_local_ws, connector).await,
         Command::Run => {
             let (shutdown, receiver) = tokio::sync::watch::channel(false);
+            let signal = panel_common::shutdown::signal()?;
             tokio::spawn(async move {
-                let _ = tokio::signal::ctrl_c().await;
-                let _ = shutdown.send(true);
+                if let Err(error) = signal.await {
+                    eprintln!("Cannot listen for shutdown: {error}");
+                }
+                shutdown.send_replace(true);
             });
             connection::run(&store, cli.allow_local_ws, connector, receiver).await
         }

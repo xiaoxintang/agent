@@ -22,11 +22,7 @@ import {
 import { fetchHealth } from "../api/health";
 import { ApiError, getLocalNode, getSession, logout } from "../api/panel";
 import { LoginForm, Management } from "./AccountPanel";
-import AgentActions from "./AgentActions";
-import ConfigPanel from "./ConfigPanel";
-import NodeMetricsPanel from "./NodeMetricsPanel";
-import TrafficPanel from "./TrafficPanel";
-import XrayPanel from "./XrayPanel";
+import NodePage from "./NodePage";
 
 const menu = [
   ["/overview", "服务概览"],
@@ -148,7 +144,7 @@ export default function App() {
       />
     );
   }
-  const localContent = (component: (nodeId: string) => React.ReactNode) => {
+  const localContent = (section: string) => {
     if (local.isPending) return <Spin aria-label="正在加载本机节点" />;
     if (local.isError)
       return (
@@ -166,7 +162,12 @@ export default function App() {
           description={<Link to="/nodes">前往节点管理设置本机</Link>}
         />
       );
-    return component(local.data.node_id);
+    return (
+      <Navigate
+        to={`/nodes/${encodeURIComponent(local.data.node_id)}/${section}`}
+        replace
+      />
+    );
   };
   const csrf = session.data.csrf_token;
   return (
@@ -178,7 +179,11 @@ export default function App() {
         <Menu
           theme="dark"
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[
+            location.pathname.startsWith("/nodes/")
+              ? "/nodes"
+              : location.pathname,
+          ]}
           items={menu.map(([key, label]) => ({
             key,
             label: <Link to={key}>{label}</Link>,
@@ -207,38 +212,29 @@ export default function App() {
               path="/audit"
               element={<Management session={session.data} page="audit" />}
             />
-            <Route
-              path="/resources"
-              element={localContent((id) => (
-                <NodeMetricsPanel key={id} nodeId={id} page />
-              ))}
-            />
-            <Route
-              path="/xray"
-              element={localContent((id) => (
-                <XrayPanel key={id} nodeId={id} csrf={csrf} page />
-              ))}
-            />
+            {(
+              [
+                "resources",
+                "xray",
+                "configuration",
+                "traffic",
+                "agent",
+              ] as const
+            ).map((section) => (
+              <Route
+                key={section}
+                path={`/nodes/:nodeId/${section}`}
+                element={<NodePage section={section} csrf={csrf} />}
+              />
+            ))}
+            <Route path="/resources" element={localContent("resources")} />
+            <Route path="/xray" element={localContent("xray")} />
             <Route
               path="/configuration"
-              element={localContent((id) => (
-                <ConfigPanel key={id} nodeId={id} csrf={csrf} page />
-              ))}
+              element={localContent("configuration")}
             />
-            <Route
-              path="/traffic"
-              element={localContent((id) => (
-                <TrafficPanel key={id} nodeId={id} page />
-              ))}
-            />
-            <Route
-              path="/agent"
-              element={localContent((id) => (
-                <Card title="本机 Agent 操作">
-                  <AgentActions key={id} nodeId={id} csrf={csrf} />
-                </Card>
-              ))}
-            />
+            <Route path="/traffic" element={localContent("traffic")} />
+            <Route path="/agent" element={localContent("agent")} />
             <Route
               path="*"
               element={

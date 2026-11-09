@@ -51,6 +51,7 @@ pub async fn cleanup(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .execute(&mut *tx)
         .await?;
     sqlx::query("UPDATE tasks SET status = 'expired', finished_at = ?, error_code = 'deadline_exceeded' WHERE deadline_at <= ? AND status IN ('pending','dispatched','acked')").bind(now()).bind(now()).execute(&mut *tx).await?;
+    sqlx::query("UPDATE config_revisions SET status='failed' WHERE status='pending' AND task_id IN (SELECT id FROM tasks WHERE status IN ('expired','canceled','failed'))").execute(&mut *tx).await?;
     sqlx::query("DELETE FROM tasks WHERE deadline_at < ? AND status IN ('succeeded','failed','expired','canceled') AND id NOT IN (SELECT task_id FROM config_revisions r WHERE task_id IS NOT NULL AND revision=(SELECT MAX(revision) FROM config_revisions WHERE node_id=r.node_id))").bind(now() - 7 * 86400).execute(&mut *tx).await?;
     sqlx::query("DELETE FROM enrollments WHERE expires_at < ?")
         .bind(now() - 86400)
@@ -61,6 +62,23 @@ pub async fn cleanup(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .execute(&mut *tx)
         .await?;
     tx.commit().await
+}
+
+pub async fn maintain(pool: SqlitePool, mut shutdown: tokio::sync::watch::Receiver<bool>) {
+    let mut tick = tokio::time::interval(Duration::from_secs(60));
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    tick.tick().await;
+    loop {
+        if *shutdown.borrow() {
+            return;
+        }
+        tokio::select! {
+            _ = shutdown.changed() => return,
+            _ = tick.tick() => if let Err(error) = cleanup(&pool).await {
+                crate::diagnostics::report("maintenance_error", &error.into(), None, None, None);
+            },
+        }
+    }
 }
 
 pub async fn audit(
@@ -78,9 +96,5 @@ pub async fn audit(
     .map_err(|_| AppError::internal())?;
     sqlx::query("INSERT INTO audit_logs (actor_id, node_id, action, target, result, created_at, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?)")
         .bind(actor_id).bind(node_id).bind(action).bind(target).bind(result).bind(now()).bind(metadata).execute(&mut **tx).await?;
-    sqlx::query("DELETE FROM audit_logs WHERE created_at < ?")
-        .bind(now() - AUDIT_RETENTION)
-        .execute(&mut **tx)
-        .await?;
     Ok(())
 }

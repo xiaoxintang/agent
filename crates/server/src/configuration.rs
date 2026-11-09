@@ -589,6 +589,7 @@ pub async fn apply(
     )
     .await?;
     tx.commit().await?;
+    state.wake_agent(&node);
     Ok((StatusCode::CREATED, Json(revision(row))))
 }
 

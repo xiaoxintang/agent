@@ -116,7 +116,6 @@ pub async fn create(
         .map_err(|_| AppError::invalid())?
         .to_string();
     expire(&state.pool, &node_id).await?;
-    sqlx::query("DELETE FROM tasks WHERE deadline_at < ? AND status IN ('succeeded','failed','expired','canceled') AND id NOT IN (SELECT task_id FROM config_revisions r WHERE task_id IS NOT NULL AND revision=(SELECT MAX(revision) FROM config_revisions WHERE node_id=r.node_id))").bind(db::now() - 7 * 86400).execute(&state.pool).await?;
     let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
     let active: bool = sqlx::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM nodes WHERE id = ? AND revoked_at IS NULL)",
@@ -199,6 +198,7 @@ pub async fn create(
         .fetch_one(&mut *tx)
         .await?;
     tx.commit().await?;
+    state.wake_agent(&node_id);
     Ok((StatusCode::CREATED, Json(row.record()?)))
 }
 

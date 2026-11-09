@@ -93,7 +93,7 @@ async fn migrations_are_idempotent_and_enforce_foreign_keys_and_private_files() 
             .fetch_one(&pool)
             .await
             .unwrap();
-    assert_eq!(migrations, 6);
+    assert_eq!(migrations, 7);
     let journal: String = sqlx::query_scalar("PRAGMA journal_mode")
         .fetch_one(&pool)
         .await
@@ -136,7 +136,7 @@ async fn migrations_are_idempotent_and_enforce_foreign_keys_and_private_files() 
             .fetch_one(&reopened)
             .await
             .unwrap(),
-        6
+        7
     );
     reopened.close().await;
 }
@@ -726,6 +726,19 @@ async fn audit_retention_removes_old_rows_and_queries_are_bounded() {
     let app = TestApp::new(true).await;
     sqlx::query("INSERT INTO audit_logs (action, target, result, created_at, metadata_json) VALUES ('old', 'none', 'success', ?, '{\"request_id\":null}')").bind(db::now() - db::AUDIT_RETENTION - 1).execute(&app.pool).await.unwrap();
     let (cookie, _) = app.login().await;
+    let entries = body(
+        app.request("GET", "/api/v1/audit", None, &[("cookie", &cookie)])
+            .await,
+    )
+    .await;
+    assert!(
+        !entries
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|entry| entry["action"] == "old")
+    );
+    db::cleanup(&app.pool).await.unwrap();
     assert_eq!(
         sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM audit_logs WHERE action = 'old'")
             .fetch_one(&app.pool)
@@ -744,6 +757,111 @@ async fn audit_retention_removes_old_rows_and_queries_are_bounded() {
     assert_eq!(entries.as_array().unwrap().len(), 100);
     assert!(entries[0]["id"].is_string());
     app.pool.close().await;
+}
+
+#[tokio::test]
+async fn node_summaries_require_auth_and_preserve_missing_stale_and_private_metrics() {
+    let app = TestApp::new(true).await;
+    assert_eq!(
+        app.request("GET", "/api/v1/nodes/summary", None, &[])
+            .await
+            .status(),
+        StatusCode::UNAUTHORIZED
+    );
+    let (cookie, _) = app.login().await;
+    let now = db::now();
+    let snapshot = json!({
+        "sampled_at": now, "cpu_percent": 25.0,
+        "memory": {"total_bytes":"9007199254740993", "used_bytes":"50", "available_bytes":"100"},
+        "disk": null, "network": null, "issues": [],
+    });
+    for (index, name) in [
+        "live",
+        "missing",
+        "old-heartbeat",
+        "old-sample",
+        "old-connection",
+        "revoked",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let id = uuid::Uuid::new_v4().to_string();
+        sqlx::query("INSERT INTO nodes (id,name,status,last_seen_at,created_at,connection_id,revoked_at) VALUES (?,?,'online',?,?,'current',?)")
+            .bind(&id).bind(name).bind(if name=="old-heartbeat" {now-46} else {now})
+            .bind(now+index as i64).bind(if name=="revoked" {Some(now)} else {None})
+            .execute(&app.pool).await.unwrap();
+        if name != "missing" {
+            sqlx::query("INSERT INTO node_metrics (node_id,connection_id,snapshot_json,received_at) VALUES (?,?,?,?)")
+                .bind(id).bind(if name=="old-connection" {"old"} else {"current"})
+                .bind(snapshot.to_string()).bind(if name=="old-sample" {now-16} else {now})
+                .execute(&app.pool).await.unwrap();
+        }
+    }
+    let response = app
+        .request("GET", "/api/v1/nodes/summary", None, &[("cookie", &cookie)])
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+    assert!(response.headers().contains_key("x-request-id"));
+    let summaries = body(response).await;
+    let entries = summaries.as_array().unwrap();
+    assert_eq!(entries.len(), 5);
+    assert_eq!(entries[0]["node"]["name"], "old-connection");
+    for entry in entries {
+        let name = entry["node"]["name"].as_str().unwrap();
+        assert_eq!(entry["metrics"]["stale"], name != "live", "{name}");
+        assert!(entry["metrics"].get("disk").is_none());
+        assert!(entry["metrics"].get("network").is_none());
+        if name == "missing" {
+            assert!(entry["metrics"]["cpu_percent"].is_null());
+            assert!(entry["metrics"]["received_at"].is_null());
+        } else {
+            assert_eq!(entry["metrics"]["cpu_percent"], 25.0);
+            assert_eq!(
+                entry["metrics"]["memory"]["total_bytes"],
+                "9007199254740993"
+            );
+        }
+        let detail = body(
+            app.request(
+                "GET",
+                &format!(
+                    "/api/v1/nodes/{}/metrics",
+                    entry["node"]["id"].as_str().unwrap()
+                ),
+                None,
+                &[("cookie", &cookie)],
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(detail["stale"], entry["metrics"]["stale"]);
+    }
+    app.pool.close().await;
+}
+
+#[tokio::test]
+async fn hot_queries_use_inbound_and_node_time_indexes() {
+    let directory = tempfile::tempdir().unwrap();
+    let pool = db::open(&directory.path().join("data")).await.unwrap();
+    for (query, index) in [
+        (
+            "EXPLAIN QUERY PLAN SELECT client_id FROM client_assignments WHERE inbound_id='node' AND enabled=1 ORDER BY client_id",
+            "client_assignments_inbound",
+        ),
+        (
+            "EXPLAIN QUERY PLAN SELECT bucket_start,SUM(uplink_bytes),SUM(downlink_bytes) FROM traffic_aggregates WHERE node_id='node' AND bucket_start>=0 GROUP BY bucket_start ORDER BY bucket_start LIMIT 168",
+            "traffic_node_bucket",
+        ),
+    ] {
+        let plan = sqlx::query_as::<_, (i64, i64, i64, String)>(query)
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+        assert!(plan.iter().any(|row| row.3.contains(index)), "{plan:?}");
+    }
+    pool.close().await;
 }
 
 #[cfg(unix)]

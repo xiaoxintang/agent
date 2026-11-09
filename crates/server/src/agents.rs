@@ -130,6 +130,7 @@ async fn authenticate(state: &AppState, headers: &HeaderMap) -> Result<Identity,
             )
             .await?;
             tx.commit().await?;
+            state.wake_agent(&node_id);
             Ok(Identity {
                 node_id,
                 credential_hash,
@@ -142,6 +143,7 @@ async fn authenticate(state: &AppState, headers: &HeaderMap) -> Result<Identity,
 
 pub async fn connect(
     State(state): State<AppState>,
+    Extension(request_id): Extension<RequestId>,
     uri: Uri,
     headers: HeaderMap,
     upgrade: Result<WebSocketUpgrade, WebSocketUpgradeRejection>,
@@ -166,7 +168,7 @@ pub async fn connect(
     Ok(upgrade
         .max_message_size(MAX_MESSAGE_BYTES)
         .max_frame_size(MAX_MESSAGE_BYTES)
-        .on_upgrade(move |socket| connection(socket, state, identity, permit)))
+        .on_upgrade(move |socket| connection(socket, state, identity, permit, request_id.0)))
 }
 
 async fn send(socket: &mut WebSocket, node_id: &str, message: Message) -> Result<(), AppError> {
@@ -195,11 +197,31 @@ async fn connection(
     state: AppState,
     identity: Identity,
     _permit: OwnedSemaphorePermit,
+    request_id: String,
 ) {
     let generation = Uuid::new_v4().to_string();
-    let _ = session(&mut socket, &state, &identity, &generation).await;
-    let _ = sqlx::query("UPDATE nodes SET status = 'offline', connection_id = NULL WHERE id = ? AND connection_id = ? AND revoked_at IS NULL")
-        .bind(&identity.node_id).bind(generation).execute(&state.pool).await;
+    let mut shutdown = state.agents_shutdown.subscribe();
+    let result = if *shutdown.borrow() {
+        Ok(())
+    } else {
+        tokio::select! {
+            _ = shutdown.changed() => Ok(()),
+            result = session(&mut socket, &state, &identity, &generation, &request_id) => result,
+        }
+    };
+    if let Err(error) = result {
+        crate::diagnostics::report(
+            "agent_error",
+            &error,
+            Some(&request_id),
+            Some(&identity.node_id),
+            None,
+        );
+    }
+    if let Err(error) = sqlx::query("UPDATE nodes SET status = 'offline', connection_id = NULL WHERE id = ? AND connection_id = ? AND revoked_at IS NULL")
+        .bind(&identity.node_id).bind(generation).execute(&state.pool).await {
+        crate::diagnostics::report("agent_disconnect_error", &error.into(), Some(&request_id), Some(&identity.node_id), None);
+    }
     let _ = tokio::time::timeout(Duration::from_secs(1), socket.close()).await;
 }
 
@@ -208,6 +230,7 @@ async fn session(
     state: &AppState,
     identity: &Identity,
     generation: &str,
+    request_id: &str,
 ) -> Result<(), AppError> {
     if let Some(credential) = &identity.enrollment_credential {
         send(
@@ -239,40 +262,76 @@ async fn session(
     if changed.rows_affected() != 1 {
         return Err(AppError::unauthorized());
     }
+    state.wake_agent(&identity.node_id);
     crate::configuration::reconcile(&state.pool, &identity.node_id).await?;
     send(socket, &identity.node_id, Message::Welcome).await?;
-    let mut tick = tokio::time::interval(Duration::from_secs(1));
+    let mut events = state.agent_events.subscribe();
+    let mut tick = tokio::time::interval(Duration::from_secs(10));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    tick.tick().await;
     let mut shutdown = state.agents_shutdown.subscribe();
     let mut heartbeat = Instant::now();
-    let mut ping = Instant::now();
+    let mut ping = tokio::time::interval(Duration::from_secs(HEARTBEAT_SECONDS));
+    ping.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut inflight: Option<(String, Instant)> = None;
+    let mut dispatch = true;
     loop {
+        if *shutdown.borrow() {
+            return Ok(());
+        }
+        if dispatch {
+            dispatch = false;
+            if !current(state, identity, generation).await? {
+                return Ok(());
+            }
+            tasks::expire(&state.pool, &identity.node_id).await?;
+            if inflight
+                .as_ref()
+                .is_none_or(|(_, sent)| sent.elapsed() >= Duration::from_secs(10))
+            {
+                let payload = if let Some((id, _)) = &inflight {
+                    sqlx::query_scalar::<_, String>("SELECT payload_json FROM tasks WHERE id = ? AND node_id = ? AND status IN ('pending','dispatched','acked') AND deadline_at > ?")
+                            .bind(id).bind(&identity.node_id).bind(db::now()).fetch_optional(&state.pool).await?
+                } else {
+                    sqlx::query_scalar::<_, String>("SELECT payload_json FROM tasks WHERE node_id = ? AND status IN ('pending','dispatched','acked') AND deadline_at > ? ORDER BY created_at, id LIMIT 1")
+                            .bind(&identity.node_id).bind(db::now()).fetch_optional(&state.pool).await?
+                };
+                if let Some(payload) = payload {
+                    let task: TaskCommand =
+                        serde_json::from_str(&payload).map_err(|_| AppError::internal())?;
+                    let changed = sqlx::query("UPDATE tasks SET status = CASE WHEN status = 'acked' THEN status ELSE 'dispatched' END, attempt_count = attempt_count + 1 WHERE id = ? AND status IN ('pending','dispatched','acked') AND deadline_at > ? AND EXISTS(SELECT 1 FROM nodes WHERE id=tasks.node_id AND connection_id=? AND revoked_at IS NULL)").bind(&task.id).bind(db::now()).bind(generation).execute(&state.pool).await?;
+                    if changed.rows_affected() == 0 {
+                        inflight = None;
+                        dispatch = true;
+                        continue;
+                    }
+                    inflight = Some((task.id.clone(), Instant::now()));
+                    send(socket, &identity.node_id, Message::Task(task)).await?;
+                } else if inflight.take().is_some() {
+                    dispatch = true;
+                    continue;
+                }
+            }
+        }
         tokio::select! {
             _ = shutdown.changed() => return Ok(()),
-            _ = tick.tick() => {
-                if heartbeat.elapsed() >= Duration::from_secs(OFFLINE_SECONDS) || !current(state, identity, generation).await? { return Ok(()); }
-                tasks::expire(&state.pool, &identity.node_id).await?;
-                if ping.elapsed() >= Duration::from_secs(HEARTBEAT_SECONDS) {
-                    tokio::time::timeout(Duration::from_secs(5), socket.send(WsMessage::Ping(Vec::new().into()))).await.map_err(|_| AppError::internal())?.map_err(|_| AppError::internal())?;
-                    ping = Instant::now();
+            _ = tokio::time::sleep(Duration::from_secs(OFFLINE_SECONDS).saturating_sub(heartbeat.elapsed())) => return Ok(()),
+            _ = tick.tick() => { dispatch = true; }
+            _ = async {
+                match &inflight {
+                    Some((_, sent)) => tokio::time::sleep(Duration::from_secs(10).saturating_sub(sent.elapsed())).await,
+                    None => std::future::pending::<()>().await,
                 }
-                if inflight.as_ref().is_none_or(|(_, sent)| sent.elapsed() >= Duration::from_secs(10)) {
-                    let payload = if let Some((id, _)) = &inflight {
-                        sqlx::query_scalar::<_, String>("SELECT payload_json FROM tasks WHERE id = ? AND node_id = ? AND status IN ('pending','dispatched','acked') AND deadline_at > ?")
-                            .bind(id).bind(&identity.node_id).bind(db::now()).fetch_optional(&state.pool).await?
-                    } else {
-                        sqlx::query_scalar::<_, String>("SELECT payload_json FROM tasks WHERE node_id = ? AND status IN ('pending','dispatched','acked') AND deadline_at > ? ORDER BY created_at, id LIMIT 1")
-                            .bind(&identity.node_id).bind(db::now()).fetch_optional(&state.pool).await?
-                    };
-                    if let Some(payload) = payload {
-                        let task: TaskCommand = serde_json::from_str(&payload).map_err(|_| AppError::internal())?;
-                        let changed = sqlx::query("UPDATE tasks SET status = CASE WHEN status = 'acked' THEN status ELSE 'dispatched' END, attempt_count = attempt_count + 1 WHERE id = ? AND status IN ('pending','dispatched','acked') AND deadline_at > ? AND EXISTS(SELECT 1 FROM nodes WHERE id=tasks.node_id AND connection_id=? AND revoked_at IS NULL)").bind(&task.id).bind(db::now()).bind(generation).execute(&state.pool).await?;
-                        if changed.rows_affected() == 0 { inflight = None; continue; }
-                        inflight = Some((task.id.clone(), Instant::now()));
-                        send(socket, &identity.node_id, Message::Task(task)).await?;
-                    } else { inflight = None; }
+            } => { dispatch = true; }
+            event = events.recv() => {
+                match event {
+                    Ok(node) if node == identity.node_id => dispatch = true,
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => dispatch = true,
+                    _ => (),
                 }
+            }
+            _ = ping.tick() => {
+                tokio::time::timeout(Duration::from_secs(5), socket.send(WsMessage::Ping(Vec::new().into()))).await.map_err(|_| AppError::internal())?.map_err(|_| AppError::internal())?;
             }
             incoming = socket.next() => {
                 let Some(Ok(incoming)) = incoming else { return Ok(()); };
@@ -300,15 +359,17 @@ async fn session(
                                 send(socket,&identity.node_id,Message::Retired).await?;
                                 return Ok(());
                             }
-                            Message::Traffic(report) => { crate::traffic::record(&state.pool, &identity.node_id, generation, &report).await?; }
+                            Message::Traffic(report) => { crate::traffic::record(state, &identity.node_id, generation, &report).await?; }
                             Message::TaskAck { task_id } => {
                                 let changed = sqlx::query("UPDATE tasks SET status = 'acked' WHERE id = ? AND node_id = ? AND status IN ('dispatched','acked') AND deadline_at > ?")
                                     .bind(&task_id).bind(&identity.node_id).bind(db::now()).execute(&state.pool).await?;
                                 if changed.rows_affected() == 0 && !belongs(state, &task_id, &identity.node_id).await? { return Err(AppError::invalid()); }
                             }
                             Message::TaskResult { task_id, result } => {
-                                record_result(state, identity, generation, &task_id, &result).await?;
-                                if inflight.as_ref().is_some_and(|(id, _)| id == &task_id) { inflight = None; }
+                                record_result(state, identity, generation, &task_id, &result).await.inspect_err(|error| {
+                                    crate::diagnostics::report("agent_task_error", error, Some(request_id), Some(&identity.node_id), Some(&task_id));
+                                })?;
+                                if inflight.as_ref().is_some_and(|(id, _)| id == &task_id) { inflight = None; dispatch = true; }
                                 send(socket, &identity.node_id, Message::ResultAck { task_id }).await?;
                             }
                             _ => return Err(AppError::invalid()),

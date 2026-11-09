@@ -17,6 +17,7 @@ time.workspace = true
 base64 = "=0.22.1"
 sha2.workspace = true
 hex.workspace = true
+tokio.workspace = true
 
 tonic = { version = "=0.14.9", default-features = false, features = ["channel", "codegen"], optional = true }
 tonic-prost = { version = "=0.14.9", optional = true }

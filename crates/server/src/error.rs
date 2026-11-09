@@ -7,11 +7,18 @@ use axum::{
 use panel_common::{ApiError, ErrorResponse};
 use serde::de::DeserializeOwned;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AppError {
     pub status: StatusCode,
     pub code: &'static str,
     pub message: &'static str,
+    pub(crate) database: Option<DatabaseError>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub(crate) struct DatabaseError {
+    kind: &'static str,
+    code: Option<String>,
 }
 
 impl AppError {
@@ -20,6 +27,7 @@ impl AppError {
             status,
             code,
             message,
+            database: None,
         }
     }
     pub const fn invalid() -> Self {
@@ -65,13 +73,29 @@ impl std::fmt::Display for AppError {
 }
 impl std::error::Error for AppError {}
 impl From<sqlx::Error> for AppError {
-    fn from(_: sqlx::Error) -> Self {
-        Self::internal()
+    fn from(error: sqlx::Error) -> Self {
+        let kind = match &error {
+            sqlx::Error::Database(_) => "database",
+            sqlx::Error::PoolTimedOut => "pool_timeout",
+            sqlx::Error::PoolClosed => "pool_closed",
+            sqlx::Error::Io(_) => "io",
+            sqlx::Error::RowNotFound => "row_not_found",
+            sqlx::Error::ColumnDecode { .. } | sqlx::Error::Decode(_) => "decode",
+            _ => "sqlx",
+        };
+        let code = error
+            .as_database_error()
+            .and_then(|error| error.code())
+            .filter(|code| code.len() <= 16 && code.bytes().all(|byte| byte.is_ascii_digit()))
+            .map(|code| code.into_owned());
+        let mut result = Self::internal();
+        result.database = Some(DatabaseError { kind, code });
+        result
     }
 }
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        (
+        let mut response = (
             self.status,
             [(header::CACHE_CONTROL, "no-store")],
             Json(ErrorResponse {
@@ -81,7 +105,9 @@ impl IntoResponse for AppError {
                 },
             }),
         )
-            .into_response()
+            .into_response();
+        response.extensions_mut().insert(self);
+        response
     }
 }
 

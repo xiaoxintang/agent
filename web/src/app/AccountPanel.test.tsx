@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import AccountPanel, { Management } from "./AccountPanel";
+import { MemoryRouter } from "react-router-dom";
 
 const session = {
   admin: { id: "admin-id", username: "admin" },
@@ -16,25 +17,27 @@ it("shows node metrics, stale data and allows setting the local node", async () 
       return Promise.resolve(
         response({ node_id: options?.method === "PUT" ? "node-1" : null }),
       );
-    if (url.endsWith("/nodes"))
+    if (url.endsWith("/nodes/summary"))
       return Promise.resolve(
         response([
-          { id: "node-1", name: "node one", status: "online" },
-          { id: "node-2", name: "node two", status: "offline" },
+          {
+            node: { id: "node-1", name: "node one", status: "online" },
+            metrics: {
+              stale: true,
+              cpu_percent: 25,
+              memory: { total_bytes: "100", used_bytes: "50" },
+            },
+          },
+          {
+            node: { id: "node-2", name: "node two", status: "offline" },
+            metrics: {
+              stale: true,
+              cpu_percent: null,
+              memory: null,
+            },
+          },
         ]),
       );
-    if (url.endsWith("/node-1/metrics"))
-      return Promise.resolve(
-        response({
-          stale: true,
-          snapshot: {
-            cpu_percent: 25,
-            memory: { total_bytes: "100", used_bytes: "50" },
-          },
-        }),
-      );
-    if (url.endsWith("/node-2/metrics"))
-      return Promise.resolve(new Response("", { status: 500 }));
     throw new Error(`Unexpected test request: ${url}`);
   });
   vi.stubGlobal("fetch", fetch);
@@ -45,10 +48,20 @@ it("shows node metrics, stale data and allows setting the local node", async () 
     <QueryClientProvider client={client}>
       <Management session={session} page="nodes" />
     </QueryClientProvider>,
+    { wrapper: MemoryRouter },
   );
   expect(await screen.findByText("25.0%（过期）")).toBeTruthy();
   expect(await screen.findByText("50.0%（过期）")).toBeTruthy();
-  expect((await screen.findAllByText("获取失败")).length).toBeGreaterThan(0);
+  expect(screen.getAllByText("暂无数据")).toHaveLength(2);
+  expect(
+    fetch.mock.calls.filter(([url]) => url.endsWith("/nodes/summary")),
+  ).toHaveLength(1);
+  expect(fetch.mock.calls.some(([url]) => url.endsWith("/metrics"))).toBe(
+    false,
+  );
+  expect(
+    screen.getAllByRole("link", { name: "管理节点" })[1].getAttribute("href"),
+  ).toBe("/nodes/node-2/resources");
   fireEvent.click(screen.getAllByRole("button", { name: "设为本机" })[0]);
   await waitFor(() =>
     expect(
@@ -91,7 +104,15 @@ it("logs in, creates and edits a real API-backed node, then logs out", async () 
       nodes = [{ ...nodes[0], name: input.name }];
       return Promise.resolve(response(nodes[0]));
     }
-    if (url.endsWith("/nodes")) return Promise.resolve(response(nodes));
+    if (url.endsWith("/nodes/summary"))
+      return Promise.resolve(
+        response(
+          nodes.map((node) => ({
+            node,
+            metrics: { stale: true, cpu_percent: null, memory: null },
+          })),
+        ),
+      );
     throw new Error(`Unexpected test request: ${url}`);
   });
   vi.stubGlobal("fetch", fetch);
@@ -100,6 +121,7 @@ it("logs in, creates and edits a real API-backed node, then logs out", async () 
     <QueryClientProvider client={client}>
       <AccountPanel />
     </QueryClientProvider>,
+    { wrapper: MemoryRouter },
   );
   const username = await screen.findByLabelText("账号");
   fireEvent.change(username, { target: { value: "admin" } });
@@ -143,6 +165,7 @@ it("clears the password after a failed login", async () => {
     <QueryClientProvider client={client}>
       <AccountPanel />
     </QueryClientProvider>,
+    { wrapper: MemoryRouter },
   );
   fireEvent.change(await screen.findByLabelText("账号"), {
     target: { value: "admin" },
@@ -173,6 +196,7 @@ it("returns to login when a protected request finds the session expired", async 
     <QueryClientProvider client={client}>
       <AccountPanel />
     </QueryClientProvider>,
+    { wrapper: MemoryRouter },
   );
   expect(await screen.findByLabelText("密码")).toBeTruthy();
   expect(client.getQueryData(["session"])).toBeNull();

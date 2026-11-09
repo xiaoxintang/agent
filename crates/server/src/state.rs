@@ -5,13 +5,14 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
-use tokio::sync::{Semaphore, watch};
+use tokio::sync::{Semaphore, broadcast, watch};
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: SqlitePool,
     pub(crate) security: Arc<Security>,
     pub agents_shutdown: watch::Sender<bool>,
+    pub(crate) agent_events: broadcast::Sender<String>,
     pub(crate) agent_slots: Arc<Semaphore>,
     pub tls_enabled: bool,
 }
@@ -34,6 +35,7 @@ impl AppState {
         Ok(Self {
             pool,
             agents_shutdown: watch::channel(false).0,
+            agent_events: broadcast::channel(256).0,
             agent_slots: Arc::new(Semaphore::new(128)),
             tls_enabled: false,
             security: Arc::new(Security {
@@ -43,6 +45,14 @@ impl AppState {
                 attempts: Mutex::new(VecDeque::new()),
             }),
         })
+    }
+
+    pub(crate) fn wake_agent(&self, node_id: &str) {
+        let _ = self.agent_events.send(node_id.to_owned());
+    }
+
+    pub async fn drain_agents(&self) {
+        let _permits = self.agent_slots.acquire_many(128).await;
     }
 }
 

@@ -7,9 +7,11 @@ pub mod telemetry;
 pub mod xray;
 pub use telemetry::{
     ByteUsage, ManagedService, MetricIssue, MetricName, MetricReason, MetricsSnapshot,
-    NetworkUsage, NodeMetrics, ServiceError, ServiceQuery, ServiceReport,
+    NetworkUsage, NodeMetrics, NodeMetricsSummary, NodeSummary, ServiceError, ServiceQuery,
+    ServiceReport,
 };
 pub use xray::{XrayError, XrayOperation, XrayRelease, XrayReport, XrayResult, XrayVersion};
+pub mod shutdown;
 pub mod storage;
 pub use protocol::{
     AgentInfo, EnrollmentInput, EnrollmentResponse, TaskCommand, TaskInput, TaskOperation,
